@@ -1,0 +1,91 @@
+* Webアプリケーション入門
+Webサーバに、HTTPプロトコルを用いてリクエストし、レスポンスを返すこと。
+** HTTPメソッド(スーパーグローバル変数)
+| $_GET     | urlのGETパラメタ。連想配列として                                                                            |
+| $_POST    | HTTP_POSTで渡された変数。連想配列として                                                                     |
+| $_FILES   | POSTでアップロードされたファイルの情報。ファイル名、形式、アップロードされたファイルのパス                  |
+| $_COOKIE  | HTTPクッキーから渡された変数。ブラウザ側に情報を保持。                                                      |
+| $_SERVER  | Webサーバの情報(host name,ip address, protocol, ヘッダ、パスなどの情報をもつ)                                 |
+| $_SESSION | セッション変数。(クッキーのように情報を保持するもの。Webサーバ側に保存される。クッキーに保存されたIDで特定) |
+| $_REQUEST | $_GET,$_POST,$_COOKIEをまとめたもの。重複するキーは上書きされる。                                           |
+| $_ENV     | 環境変数                                                                                                    |
+** データベースを使う
+*** mysqlにログインし、データベース作成
+: mysql -u root -p create database DBNAME
+で、データベースを作成。
+*** sql文でテーブルをつくる
+以下のようなsqlファイルを書いて、
+: drop table if exists posts;
+: create table posts (
+:  id              int   not null auto_increment,
+:  name       varchar(40),/*携帯の識別番号*/
+:  created_at datetime,
+:  primary key(id)
+: )
+: engine = innodb
+: character set utf8 collate utf8_general_ci;
+mysqlのデータベースに接続、sql文を読み込ませる。
+: mysql -u root -p php_bbs < /path/to/file/xxx.sql
+*** データベースに接続
+mysql_connectでMySQLサーバと接続、mysql_select_dbでデータベースを選ぶ。
+: $link = mysql_connect('localhost','username','password');
+: if (!$link) {
+:   die('Couldnt connect mysql : ' . mysql_error());
+: }
+: mysql_select_db('DBNAME', $link);
+*** sql文の実行
+mysql_query。第1引数にSQL文、第2引数にMySQLとの接続。
+: mysql_query($sql,$link);
+SQLインジェクション対策のために、SQL文に変数を埋める場合、mysql_real_escape_stringを用いる。
+: $sql = "insert into posts (name,comment,created_at) values ('" . mysql_real_escape_string($name) . "','" . mysql_real_escape_string($name) . "','" . date('Y-m-d H:i:s') . "')";
+*** データベースからレコードを取得
+: $result = mysql_query("select * from posts order by created_at desc",$link);
+で、mysqlからレコードを取得する。
+- mysql_num_rows 取得結果の件数
+: while ($post = mysql_fetch_assoc($result))
+mysql_fetch_assoc()をすると、取得結果から1行のレコードを、連想配列として抜き出してくれる。
+すべての行を抜き出すと、mysql_fetch_assoc()はfalseを返す。
+*** 接続の解放
+mysql_queryで取得した結果を、メモリから解放。
+: mysql_free_result($result);
+mysql_connectで取得した接続を解放。
+: mysql_close($link);
+
+解放処理はPHPが自動的にやってくれるが、明示しておいたほうが安心。
+
+** 投稿後のリダイレクト
+同じURIページにPOSTし、そのページを更新すると、同じPOSTリクエストが行われてしまう。
+これを回避し、元のGETリクエストのページを表示するには、HTTPヘッダを書きかえる必要がある。
+
+HTTPヘッダに情報を追加したいときは、header()関数をつかう。
+たとえば、リダイレクトしたいときは、以下のように行う。
+: header('Location: http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
+** レガシーコードからの脱却
+*** ロジックとビューの分離
+ロジック部分に、ビューを読み込むようにすると、後で確認がしやすい。
+: include './views/bbs_views.php';
+*** 重複を避ける DRY
+* フレームワークによる開発
+** MVCモデル
+- モデル     ビジネスロジック。主に、データベースのIO
+- ビュー     出力。Webアプリケーションのばあい、HTML
+- コントローラ リクエスト制御、モデルから情報を取得してビューへ渡す
+** 今回つくるフレームワークの構造
+| Request      | GET,POSTパラメタ、URIなど                                                       |
+| Router       | URLをRequestから受け取り、どのコントローラを呼び出すかを決定                    |
+| Response     | Requestに対するレスポンス。ユーザに返す最終的な情報。                           |
+| DbManager    | データベースへの接続情報                                                        |
+| DbRepository | 実際にデータベースへのアクセスを伴う処理を管理。                                |
+| Controller   | モデル、ビューの制御をおこなう。                                                |
+| View         | HTMLが記述されたファイルの読み込み、変数の受け渡し。                            |
+| Session      | セッション管理                                                                  |
+| Application  | アプリケーション全体を管理。Request,Sessionクラス初期化、コントローラ実行など。 |
+| ClassLoader  | 定義したファイルを自動的に読み込む機能を管理。(オートロード)                                                                                    |
+** ClassLoaderについて
+オートロードの対象となるクラスのルールを設定すると、管理がしやすくなる。
+今回は
+- クラスファイルは、「クラス名.php」という形式
+- クラスファイルは、core/ および models/ にある
+というルールで記述。
+sql_autoload_registr()を使う。関数に設定したコールバックがオートロード時に呼び出される。
+今回は自分自身のloadClass()を設定。

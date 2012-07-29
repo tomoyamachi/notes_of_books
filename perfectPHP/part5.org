@@ -1,0 +1,55 @@
+* 11章 実践オブジェクト指向
+** マジックメソッド
+- __construct()  new演算子でクラスをインスタンス化するときに呼び出される
+- __destruct()   プロセス終了、unset()で明示的にインスタンスを破棄するときに呼び出される
+- __get()        特定のプロパティが定義されていない場合、private/protectedでアクセスできない場合の動作
+- __set()        特定のプロパティが定義されていない場合、private/protectedでアクセスできない場合の動作
+- __isset()      特定のプロパティが定義されていない場合、private/protectedでアクセスできない場合の動作
+- __unset()      特定のプロパティが定義されていない場合、private/protectedでアクセスできない場合の動作
+- __call()       定義されていないインスタンスメソッド、アクセスできないインスタンスメソッド呼出しのときの動作
+- __callStatic() 定義されていないクラスメソッド、アクセスできないクラスメソッド呼出しのときの動作
+- __sleep()      serialize()したときに呼び出される
+- __wakeup()     unserialie()したときに呼び出される
+- __toString()   オブジェクトを文字列にキャストするタイミングで呼び出される
+- __invoke()     実装したクラスを関数のように扱うことができる
+: class MyFilter{
+:     public function filter($params){
+:         //do something
+:     }
+:     publid function __invoke($params){
+:         return $this->filter($params);
+:     }
+: }
+: $filter = new MyFilter();
+: $filter('foo'); // filterメソッドを実行
+- __clone()       オブジェクトヲ複製する際に呼び出される。
+通常のcloneだと、オブジェクトの中で別のオブジェクトをプロパティとしてもっている場合は参照渡しとなる。
+参照渡しにしたくない場合は以下のように書く。
+: class Foo {
+:   public $bar;
+:   public function __clone() {
+:     $this->bar = clone $this->bar;
+:   }
+:
+: }
+: class Bar {
+:   public $value;
+: }
+:
+: $foo = new Foo();
+: $foo->bar = new Bar();
+: $foo->bar->value = 'bar';
+:
+: $foo2 = clone $foo;
+: $foo2->bar->value = 'bar2';
+:
+: var_dump($foo->bar->value);  // bar  <- 参照渡しになっていない。参照渡しの場合はbar2.
+: var_dump($foo2->bar->value); // bar2
+
+*** serialize() / unserialize()
+serialize()    引数として渡した値を直列化する(文字列化する)
+unserialize()  serializeされた文字列を、元の値に復元する
+** オブジェクトを配列のように
+*** Itratorインターフェース
+*** ArrayAccessインターフェース
+

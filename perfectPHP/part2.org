@@ -1,0 +1,721 @@
+* 導入
+** 実行環境
+: sudo aptitude install php5 php-pear php5-dev php5-mysql
+: sudo aptitude install mysql-server apache2
+: sudo /etc/init.d/apache2 restart
+: sudo /etc/init.d/mysql start
+** Emacs
+: M-x auto-install-from-url http://php-mode.svn.sourceforge.net/svnroot/php-mode/tags/php-mode-1.5.0/php-mode.el
+.emacsに以下を追記。
+: (require 'php-mode)
+: (add-hook 'php-mode-user-hook
+:           '(lambda ()
+:              (setq tab-width 2)
+:              (setq indent-tabs-mode nil))
+:           )
+.emacs.dディレクトリで、以下のコマンドを実行。php.dictにphpの関数名を入力。
+: php -r '$func = get_defined_functions(); echo implode("\n", $func["internal"]);' | sort > php.dict
+.emacsに以下のコードを書くと、C-M-iで関数名を参照できる。
+: ;; 補完のためのマニュアルのパス
+: (setq php-completion-file "~/.emacs.d/php.dict")
+: ;; M-TAB が有効にならないので以下の設定を追加
+: (define-key php-mode-map "\C-\M-i" 'php-complete-function)
+** 動作確認
+/var/www/に、phpinfo.phpを作成し、以下を入力。
+: <?php phpinfo(); ?>
+http://localhost/phpinfo.php が表示されれば、動いている。
+** php.ini設定
+apacheでの表示は、/etc/php5/apache2/php.ini
+コマンドラインでの表示は、/etc/php5/cli/php.ini
+エラーの表示
+- error_reporting 開発環境では E_ALL | E_STRICT にしておくと、すべてのエラーが表示される。
+- display_errors 開発環境では On に
+- log_errors = On
+- error_log = /var/log/php.log
+* 言語使用
+** 実行
+コマンドラインでは、
+: php sample.php
+ブラウザで接続する方法もある。
+
+設定ファイルは、それぞれ
+- コマンドライン /etc/php5/cli/php.ini
+- ブラウザ     /etc/php5/apache2/php.ini
+にある。
+** デバッグに役立つもの。
+*** var_dump()関数
+var_dump($value)すると、変数の型情報と、入っている値を同時に確認できる。
+*** エラーの表示方法
+error_reporting()で通知するエラーのレベルを設定。すべてのエラーを通知するには、以下のコード。くわしくはp50以降。
+: error_reporting(E_ALL| E_STRICT)
+ini_set()で、エラーを表示するかどうかを設定。これは環境によって初期状態が違う。表示したければ以下。
+: ini_set('display_errors','On')
+*** エラーの種類
+- パースエラー - 文法が間違えている
+- 実行時エラー - 実行が停止する(Fatal Errorなど)
+- 警告/注意 - 実行できるが、警告がでる(Warning, Noticeなど)
+** 変数と定数
+*** 変数
+**** スーパーグローバル変数 連想配列にて保存されている
+| $GLOBALS  | すべてのグローバル変数への参照     |
+| $_SERVER  | ヘッダ、パスなどの情報をもつ        |
+| $_GET     | urlパラメタ                         |
+| $_POST    | HTTP_POSTで渡された変数            |
+| $_FILES   | アップロードされたファイルの情報    |
+| $_COOKIE  | HTTPクッキーから渡された変数        |
+| $_SESSION | セッション変数                      |
+| $_REQUEST | $_GET,$_POST,$_COOKIEをまとめたもの |
+| $_ENV     | 環境変数                           |
+
+*** 定数
+一度定義すると、スクリプトが実行しおわるまで変更できない。
+define()関数で定義。
+constでも定義可能。
+変数の中の定数を表示したい場合は、constant
+: define('BOOK', 'sample title');
+: $val = 'BOOK';
+: echo constant($val);
+** エラーについて
+php.iniにエラーの設定をまとめておくと楽。
+* 型と演算子
+** 型
+phpでは自動的に型のキャストが行われる。
+変数の型がわかっている場合は、
+- キャストの宣言を行う
+- 厳密な比較演算子「===」を用いる
+などすると、予期しないエラーが減る。
+*** 型のキャスト宣言
+基本的に、 「(型名)'値';」でキャストされる。
+: echo (int)'56'; //56
+*** 文字列型(String)
+ダブルクオート""内では、変数が展開される。
+変数の区切りは、{}で知らせる。
+: echo "${var}is string."
+シングルクオート''内では展開されない。
+ヒアドキュメント宣言は、<<EOIではじまる。
+
+** 演算子
+*** ビット演算子
+| &  | ビット積                                           |
+| \|  | ビット和                                           |
+| ^  | 排他的論理和(両辺のどちらにしか立っていないビット) |
+| ~  | 否定(ビットの反転)                                 |
+| << | 左シフト                                           |
+| >> | 右シフト                                                   |
+*** 論理演算子
+: && and   論理積
+: || or    論理和
+: xor      排他的論理和
+: !        否定
+*** 文字列演算子 .
+「.」をつかうと、数値と文字列を連結させることができる。(数値を文字列へキャストさせる)
+: $age = 15
+: $sentence = "I am " . $age . " years old."
+: echo $sentence,PHP_EOL;
+*** 型演算子 instanceof
+instanceofで、特定クラスのインスタンスかどうかを調べることができる。
+: $a instanceof ClassName
+*** 三項演算子 a ? b : c
+: conditions ? run_when_true : run_when_false
+とすると、conditionがtrueのときに、run_when_trueの部分が動作する。
+rubyの、 「||=」 がつかいたいときなどに使う。
+: Ruby ver.
+: @var ||= "default"
+: PHP ver.
+: $var = isset($var) ? $var : 'default';
+PHPの三項演算子は、左結合で、混乱しやすい。
+ネストするときは、()をつけて、明示的に実行する。
+*** エラー制御演算子 @
+その式で発生するエラーを抑制する。
+*** (シェルコマンド)実行演算子 ``
+バッククオートで囲まれた部分は、シェルコマンドとして実行される。
+返値に、コマンドの出力をうけとる。
+** 配列
+特徴
+- 添字配列と連想配列が同じ配列型
+- 添字配列と連想配列を混在させることができる
+- 連想配列は、入力順が保証される。順序付きマップ。
+**** 通常の配列(添字配列)
+: array(
+:   'first',
+:   'second',
+:   'third'
+: )
+**** 連想配列
+: array(
+:   'first' => 'first obj',
+:   'second' => 'second obj',
+:   'third => 'third obj'
+: )
+**** 多次元配列
+: $fruits = array(
+:   'apple' => array(
+:     'price' => 100,
+:     'count' => 5,
+:   ),
+:   'banana' => array(
+:     'price' => 200,
+:     'count' => 3,
+:   ),
+: );
+:
+: foreach ($fruits as $name => $value) {
+:   echo "$name : {$value['price']} yen * {$value['count']} num.",PHP_EOL;
+: }
+結果
+: apple : 100 yen * 5 num.
+: banana : 200 yen * 3 num.
+
+* 制御構造と関数
+** 制御構造
+実行するコードが複数行の場合、{}をつかってグループ化するが、
+ブロック文の閉じ構文(endif,endwhileなど)をつかうと、{}をつかわずグループ化できる。
+可読性がちょとあがるかも。
+: <?php if (conditions1): ?>
+:   run when true conditions1
+: <?php else: ?>
+:   run when false conditions1
+: <?php endif; ?>
+*** if
+: if (conditions) {
+:   run when true conditions1
+: } elseif (conditions2) {
+:   run when true conditions2
+: } else {
+:   run when false all conditions
+: }
+ブロック文の閉じ構文
+: endif;
+*** while
+: while (conditions) {
+:  run while true conditions1
+: }
+*** do-while
+: do{
+:   run first
+: } while (conditions1);
+*** for
+: for (initial state, conditions, do while true conditions){
+:   run while true conditions
+: }
+*** foreach
+: foreach ($array_data as $value){
+:   run
+: }
+&をつけると、参照を受けることができる。
+参照を受けることができると、元の配列を書き換えることができる。
+: $array = array(1,2,3,4,5);
+: foreach ($array as $value){$value = 6;}
+: var_dump($array);
+: # array(5) {
+: #   [0]=>
+: #   int(1)
+: #   [1]=>
+: #   int(2)
+: #   [2]=>
+: #   int(3)
+: #   [3]=>
+: #   int(4)
+: #   [4]=>
+: #   int(5)
+: # }
+: foreach ($array as &$value){$value = 6;}
+: var_dump($array);
+: # array(5) {
+: #   [0]=>
+: #   int(6)
+: #   [1]=>
+: #   int(6)
+: #   [2]=>
+: #   int(6)
+: #   [3]=>
+: #   int(6)
+: #   [4]=>
+: #   &int(6)
+: # }
+
+*** switch
+break宣言がないばあいは、
+- 次にbreak宣言がある
+- switch構文が閉じる
+の条件をみたすまで、実行しつづける。
+
+: $hour = date('G');
+: switch ($hour) {
+:   case '6':
+:     echo "good morning" , PHP_EOL;
+:     break;
+:   case '12':
+:     echo "hello" , PHP_EOL;
+:     break;
+:   case '20':
+:     echo "good evening." , PHP_EOL;
+:     break;
+:   default:
+:     echo "hi" , PHP_EOL;
+:     break;
+: }
+*** exit
+それ以降のコードは評価しない。
+*** require / require_once / include / include_once
+ファイルを読み込む。
+一度しか読み込む必要のないファイルは、 **_once。
+require は、ファイルがない場合、Fatalエラーとなる。
+include は、ファイルがない場合、warningとなり、実行が継続される。
+*** goto
+あらかじめラベルのついた場所へジャンプする。
+** 関数
+*** 基本
+**** 構文
+returnをつかって、結果を返す。
+: function funcName (parameters){
+:   run;
+:   return value;
+: }
+**** 引数のデフォルト値
+=をつけると、デフォルト値を指定できる
+: function hello ($name, $greeting = 'Hello, ') {
+:   echo $greeting, $name , PHP_EOL;
+: }
+: hello('Bob'); #=> Hello, Bob
+: hello('Tom','Hi, ') 3=> Hi, Tom
+**** タイプヒンティング
+引数の前に型を指定すると、Catchable fatal errorを発生させることができる。
+: function hello (string $name, $greeting = 'Hello, ') {
+:   echo $greeting, $name , PHP_EOL;
+: }
+: hello(12); #=> PHP Catchable fatal error:  Argument 1 passed to hello() must be an instance of string, string given
+
+*** 関数呼び出し
+**** コールバック関数
+引数に関数を指定することができる関数。
+引数に指定できる関数は、
+- 関数名をあらわす文字列
+- 無名関数
+- クラス、クラスのインスタンスとメソッド名をもつ配列
+- クラスの静的メソッドを表す文字列
+
+以下の例では、strvalをarrayの要素に適用している。
+: $array = array('1','2',3,1.5,);
+: $new_array = array_map('strval', $array);
+: var_dump($new_array);
+: array(4) {
+:   [0]=>
+:   string(1) "1"
+:   [1]=>
+:   string(1) "2"
+:   [2]=>
+:   string(1) "3"
+:   [3]=>
+:   string(3) "1.5"
+: }
+**** 可変関数 func_caller
+変数で指定した関数を実行することができる。
+: function func_caller ($name) {
+:   if (function_exists($name)
+:     {
+:       $name();
+:     }
+: }
+**** call_user_func / call_user_func_array
+関数を呼び出せる。
+: class Math{
+:   public static function add ($v1,$v2) {
+:     return $v1 + $v2;
+:   }
+: }
+: echo call_user_func('Math::add',3,4) , PHP_EOL;               #=>7
+: echo call_user_func(array('Math','add'),3,4) , PHP_EOL;       #=>7
+: echo call_user_func_array('Math::add',array(3,4)) , PHP_EOL;  #=>7
+*** 参照による引数と返値、 破壊的関数
+引数に&をつけると、参照渡しになる。
+つまり、引数に渡した変数の中身を書き換える可能性がある。
+: function add_one (&$num) {
+:   $num =+ 1;
+: }
+: $a = 0;
+: add_one($a);
+: echo $a, PHP_EOL; #=> 1
+
+このとき、引数に指定できるのは変数のみで、値を直接渡すと、Fatal errorとなる。
+*** 無名関数
+変数を代入したり、コールバックに指定することができる。
+**** array_mapに無名関数を
+: $array = array('"double quote"','<tag>',);
+: $escaped = array_map(function($val){
+:   return htmlspecialchars($val, ENT_QUOTES, "UTF-8");
+: }, $array);
+: var_dump($escaped);
+: # array(2) {
+: #   [0]=>
+: #   string(24) "&quot;double quote&quot;"
+: #   [1]=>
+: #   string(11) "&lt;tag&gt;"
+: # }
+**** クロージャ
+無名関数が定義されたスコープにおける変数を、関数内で使用できる。
+: $my_pow = function($times = 2){
+:   return function ($v) use (&$times) {
+:     return pow( $v, $times);
+:   };
+: };
+: echo pow(3,3), PHP_EOL; # 27
+: $cube = $my_pow(3);
+: echo $cube(3) , PHP_EOL; # 27
+*** 定義済み関数
+get_defined_functions で調べる。
+* クラスとオブジェクト
+** クラス
+*** クラス宣言
+: class Employee
+: {
+:   public $name;
+:   public $state = 'working';
+:   public function work(){
+:     echo "Im working.", PHP_EOL;
+:   }
+: }
+*** クラス内でのメソッド
+*** プロパティ
+クラスの中に保持している変数。
+デフォルト値を入れたい場合は、=で指定。
+*** アクセス修飾子
+メソッド、プロパティがどこからアクセス可能かを表す修飾子。
+| public    | クラスの外側から呼び出し、参照ができる                       |
+| private   | クラスの内側からのみ呼び出し、参照ができる                   |
+| protected | クラスの内側、継承クラスの内側からのみ呼び出し、参照ができる |
+*** インスタンスの生成、メソッド呼び出し
+アロー演算子(->)をつかうと、メソッドが呼び出せる。
+: $tomo = new Employee();
+: $tomo->work();  ## Im working.
+インスタンスを代入するときに = だけだと、同じオブジェクトへ参照してしまうので、
+cloneをつかう。
+: $suzuki = $tomo; #同じオブジェクト
+: $yamada = clone $tomo; # 新たなEmployeeオブジェクトとして生成。
+*** private修飾子がついたプロパティへのアクセス
+$thisを経由する。
+: class Employee
+: {
+:   public $name;
+:   private $state = 'default state';
+:   public static $country = 'Japan';
+:
+:   public function work(){
+:     echo "Im working.", PHP_EOL;
+:   }
+:
+:   public function getState() {
+:     return $this->state;
+:   }
+: }
+: $tomo = new Employee();
+: echo $tomo->getState(), PHP_EOL;
+*** クラス定義時に宣言しないプロパティも自動でつくられる
+: $tomo->job = 'programmer';
+とすると、勝手に public job プロパティがつくられる。
+しかし、混乱の元となるので、やめたほうがよい。
+*** staticプロパティ - 静的プロパティ
+インスタンス化しなくてもアクセス可能なプロパティ。(::)でアクセス。
+: echo Employee::$country, PHP_EOL; #=> Japan
+*** 定数 const
+constキーワードをつかうと、定数を定義できる。
+: const TEISU = 100;
+*** メソッド クラスに属する関数
+アクセス修飾子がつかえる。
+static宣言をすると、インスタンス化されていなくても外部から呼び出せる。
+:   public static function stmethod () {
+:     echo 'this is static method.', PHP_EOL;
+:   }
+: Employee::stmethod();  #=> this is static method.
+*** self 自身をあらわす
+selfと(::)をつかって、クラス内の
+- メソッド
+- 定数
+- プロパティ
+にアクセスできる。
+:   public function getCountry () {
+:     echo self::$country, PHP_EOL;
+:     echo self::getState(), PHP_EOL;
+:     echo self::TEISU, PHP_EOL;
+:   }
+: $tomo->getCountry(); #=> Japan
+:                          default state
+:                          100
+*** コンストラクタとデコンストラクタ initializeとおなじ
+- __constructをつかうと、initialize(インスタンス生成のタイミングで実行)できる。
+- __deconstructでは、インスタンスが消されるタイミングで自動的に実行される部分を書く。
+: class Employee
+: {
+:   const PARTTIME = 10;
+:   const REGULAR  = 20;
+:
+:   public $name;
+:   public $type;
+:   private $state = 'default state';
+:   public static $country = 'Japan';
+:
+:   public function __construct ($name,$type) {
+:     $this->name = $name;
+:     $this->type = $type;
+:   }
+: }
+: $tomo = new Employee('Tomoya',Employee::REGULAR);
+: var_dump($tomo);
+: #=> object(Employee)#1 (3) {
+: #=>   ["name"]=> string(6) "Tomoya"
+: #=>   ["type"]=> int(20)
+: #=>   ["state":"Employee":private]=> string(13) "default state"
+: #=> }
+*** 継承 extends
+すでにあるクラスのメソッド、プロパティを引き継ぐ。
+**** オーバーライド
+同じ名前のメソッド、プロパティを定義した場合、子クラスでそれらが上書きされる。
+ただし、引数の形式が違うとエラーがでる。
+回避するにはデフォルト値を持つ引数を設定する。
+**** parent
+parent(::)をつかうと、親クラスのメソッド、プロパティにアクセスできる。
+: class Programmer extends Employee
+: {
+:   public function __construct ($name,$type) {
+:     parent::__construct($name,$type);
+:     some Programmer's functions.
+:   }
+: }
+**** final オーバーライドの禁止
+: public final function func_name(){....}
+とすると、オーバーライドできなくなる。(Fatal error)
+*** 抽象クラス abstract
+共通の機能を抽象的な親クラスで定義。
+特有の機能は子クラスで実装するときにつかう。
+子クラスが、abstractクラスに定義された、abstractメソッドを実装していないと、Fatal errorが発生。
+: abstract class Employee{
+:   abstract public function work();
+: }
+: class Programmer extends Employee{
+:   public function work(){
+:     ...
+:   }
+: }
+** インターフェース
+機能の実装を規格するための仕組み。クラスに実装するにはimplementsキーワードをつかう。
+abstractと同じく、実装したインターフェースに定義されたメソッドを定義しなければFatalError。
+? インターフェースとabstractクラスの使い分けは ?
+: interface Reader{
+:   public function read($value);
+: }
+:
+: interface Writer{
+:   public function write();
+: }
+:
+: class Configure implements Reader, Writer {
+:   public function write () {
+:     /* writer func */
+:   }
+:
+:   public function read ($value) {
+:     /* read func */
+:   }
+: }
+*** メリット
+インターフェイスを実装したクラスのオブジェクトであれば、特定のメソッドを実装していることが保証される。
+*** 定義済みインターフェース
+組込みのインターフェイスがある。
+| Iterator          | foreach構文で扱うことができるようになる |
+| RecursiveIterater | 再帰的にイテレートを可能にする          |
+| SeekableItrater   | シークを可能にする                      |
+| ArrayAccess       | ブラケット[]によるアクセスを可能にする  |
+| Serializable      | serialize / unserialize関数の挙動を実装 |
+| Countable         | count関数によってカウント可能にする     |
+*** インターフェイスのチェック
+変数でインターフェイスが実装されたクラスのオブジェクトを扱う場合。
+変数には型宣言がないので、インターフェイスの実装がされているか保証されない。
+そのとき、渡された変数が、特定のインターフェイスを自走しているかをチェックする方法。
+**** タイプヒンティング
+: public function writer (Iterator $itr){ /* some functions */  }
+**** instanceof
+: public function writer ($itr){
+:   if ($itr instanceof Iterator === false ){
+:     /* some functions */
+:   }
+: }
+** オブジェクト
+*** マジックメソッドとオーバーロード
+マジックメソッドは特定の条件のときに呼び出されるメソッド。
+**** マジックメソッド一覧
+***** オーバーロード
+アクセス不能なメソッド、プロパティへアクセスすると、通常エラーが出るが、
+以下のマジックメソッドをつかうと、その挙動を変更できる。
+引数にメソッド名、プロパティ名が入り、返値を返す。
+| __call()       | アクセス不能なメソッドを呼び出す                                 |
+| __callStatic() | アクセス不能なメソッドをstaticに呼び出す                         |
+| __get()        | アクセス不能なプロパティを取得する                               |
+| __set()        | アクセス不能なプロパティに代入                                   |
+| __isset()      | アクセス不能なプロパティに、isset()/empty()を実行                |
+| __unset()      | アクセス不能なプロパティに、unset()を実行                        |
+***** その他
+| __construct() | initialize(インスタンス生成のタイミングで実行)                         |
+| __destruct()  | インスタンスが消されるタイミングで自動的に実行される                   |
+| __sleep()     | serialize() 実行時                                                  |
+| __wakeup()    | unserialize() 実行時                                                |
+| __toString()  | クラスを文字列として出力(echoなど)するときに呼び出される               |
+| __invoke()    | スクリプトがオブジェクトを関数として実行しようとしたときに呼び出される |
+| __set_state() | var_exportした文字列から▼復元                                         |
+| __clone()     | cloneキーワード実行時                                                  |
+**** 例
+: class Employee
+: {
+:   public function __toString () {
+:     return 'This class is ' . __CLASS__;
+:   }
+: }
+: $tomo = new Employee();
+: echo $tomo, PHP_EOL; #=> This class is Employee
+*** 遅延静的束縛
+親クラスで、子クラスのプロパティにアクセスする方法。
+selfのかわりに、staticキーワードをつかう。
+すると、そのクラスでのプロパティにアクセスできる。
+: class Employee{
+:   public static $name = 'tomoya';
+:
+:   public function callSelfName () {
+:     echo 'Self name is ' , self::$name, PHP_EOL;
+:   }
+:
+:   public function callStaticName () {
+:     echo 'Static name is ', static::$name, PHP_EOL;
+:   }
+: }
+: class Programmer extends Employee {
+:   public static $name = 'no name';
+: }
+:
+: $nona = new Programmer();
+: $nona->callSelfName();   #=> Self name is tomoya
+: $nona->callStaticName(); #=> Static name is programmer
+? 5.3から実装されたようだが、それ以前はどうしていたのか ?
+*** オートロード __autoload() , sql_autoload_register()
+**** __autoload()
+必要なときにのみ、ファイルをロードさせる。
+以下では、Fooクラスのオブジェクトをつくろうとしたときに、
+Foo.phpが読み込み可能ファイルかを確認して、
+読み込み可能であれば、Foo.phpを読み込む。
+: function __autoload ($name) {
+:   $filename = $name . '.php';
+:   if (is_readable($filename)){
+:     require $filename;
+:   } else {
+:     echo "Could non find $filename file...", PHP_EOL;
+:   }
+: }
+: $obj = new Foo();
+__autoload()の欠点
+- グローバル関数にしなければいけない
+- 処理を1つしか登録できない
+**** spl_autoload_register()
+__autoload()の欠点を補うための関数。
+オートロードに使われる処理をコールバック関数の形式で指定
+複数のコールバック関数をオートロードキューに指定
+指定した複数のコールバック関数を順に適用、それでもクラスが存在しなればFatal error。
+** 名前空間 namespace
+クラスや関数の使える名前の集合を限定し、名前の衝突を防いだり、機能の参照をわかりやすくする。
+unixのシステムでいう、ディレクトリのようなもの。
+*** ポイント
+- 名前空間の区切りにはバックスラッシュ(\)
+: namespace Food\Sweets; /* 現在の名前空間はFood\Sweets であることを宣言。 */
+: class Cake{}           /* Food\Sweets の名前空間に Cake クラスをつくった。*/
+: $c = new \Food\Sweets\Cake();
+- 名前空間を定義した場合、グローバルな関数やクラスは、グローバルな名前空間から参照しなければならない。
+- グローバルな名前空間から参照するには、頭に\をつける (例: \Food)
+*** 修飾名
+| 非修飾名   | \をふくまない識別子 |
+| 修飾名     | \をふくむ識別子     |
+| 完全修飾名 | 先頭が\の識別子     |
+*** 定義
+- 名前空間の影響を受けるもの
+  - クラス
+  - 関数
+  - constキーワードをつかった定数
+- 影響を受けないもの
+  - 変数
+  - defineで定義された定数
+同じ名前空間の中では、名前空間の宣言を省略できる。もしくは完全修飾名をつかった絶対指定もできる。
+別の名前空間から参照するには、完全修飾名をつかって絶対指定をする。
+: namespace Project\Module;
+: class Directory {}
+: $d1 = new Directory();
+: $d2 = new \Project\Module\Directory();
+*** 1つのファイルに複数の名前空間を定義する
+: namespace Project\Module1;
+: class Directory{}  /* \Project\Module1\Directoryクラス */
+:
+: namespace Project\Module2
+: class Directory{} /* \Project\Module2\Directoryクラス */
+もしくは{}で囲むことで、複数の名前空間を定義できる。
+*** インポートルール use
+useキーワードをつかうと、クラスのインポートができる。
+(関数と定数はインポートされない。)
+asをつかうと、別名を定義することができる。
+: use \Project\Module1 as FirstModule
+とすると、\Project\Module1にあるクラスのインスタンスを、
+: $f = new FirstModule\SomeClass();
+でつくれる。
+
+以下の2つの宣言は同等の意味を持つ。
+: use \Project\Module1
+: use \Project\Module1 as Module1
+
+**** クラス名のインポート
+同様に、クラスもインポートできる。
+: use FirstModule\SomeClass;
+: $f = new SomeClass();
+*** 名前解決
+PHPでは、コンパイルのためのコードに変換したあと、名前解決をおこなう。
+だから、すでにある名前空間を動的に定義することはできるが、
+コンパイル時に変換を行うasを用いたエイリアスには対応できない。s
+** 例外
+throw で例外を発生させる。
+try catch で例外を捕捉する。
+: function div ($v1,$v2) {
+:   if ($v2 === 0){ throw new Exception("arg #2 is zero."); }
+:   return $v1/$v2;
+: }
+: try {
+:   echo div(4,2), PHP_EOL;
+:   echo div(4,0), PHP_EOL;
+:   echo div(4,8), PHP_EOL;
+: } catch (Exception $e) {
+:   echo $e->getMessage(), PHP_EOL;
+: }
+*** 定義済み例外
+例外にはすでに組込まれているものがある。Exceptionなどがそう。
+自分で新たに例外をつくりたかったら、Exceptionを継承したクラスを作ればよい。
+: class ZeroDivisionException extends Exception{}
+: function div ($v1,$v2) {
+:   if ($v2 === 0){ throw new ZeroDivisionException("arg #2 is zero."); }
+:   return $v1/$v2;
+: }
+: try {
+:   echo div(4,2), PHP_EOL; #=> 2
+:   echo div(4,0), PHP_EOL; #=> zero division error /
+: }  catch (ZeroDivisionException $e) {
+:   echo 'zero division error', PHP_EOL;
+: } catch (Exception $e) {
+:   echo $e->getMessage(), PHP_EOL;
+: }
+** 参照
+内部的に値をどう保持しているか。
+どのように破棄されるか。
+*** 値の参照
+: $a = 10;
+: $b = $a;
+: $c =& $a;
+: $c = 100;
+: echo $a, PHP_EOL;  100
+: echo $b, PHP_EOL;   10
+: echo $c, PHP_EOL;  100
+*** オブジェクトの参照
+: $a = new SomeClass();
+とするとき、$aにはオブジェクトのIDが保存される。
+このとき $b = $a としても、同じオブジェクトを参照することとなる。
+このときは、cloneをつかう。
