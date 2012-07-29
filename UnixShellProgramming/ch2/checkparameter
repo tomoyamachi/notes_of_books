@@ -1,0 +1,9 @@
+#!/bin/sh
+echo '=========check $* start'
+echo $*
+echo '=========check $@ start'
+echo $@
+echo '=========check "$*" size start'
+./checknum "$*"
+echo '=========check "$@" size start'
+./checknum "$@"

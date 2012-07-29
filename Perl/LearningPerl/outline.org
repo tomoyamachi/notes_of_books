@@ -1,0 +1,127 @@
+* Perl入門
+** Perlは超高級言語(VHLL:very high-level lunguage)
+ショートカットコードをつかうことにより、Cの1/4~3/4の長さにおさまる。
+** どんな問題につよい?
+テキスト処理が90%、それ以外の処理が10%で構成されるもんだい にむけて最適化されている。
+** CPAN(Comprehensive Perl Archive Networ)とは？
+perlの情報がすべてつまっている場所
+
+** はやわかりツアー
+: @lines = `perldoc -u -f atan2`; #外部コマンドを実行
+: foreach (@lines) {
+:     s/\w<([^>]+)>/\U$1/g;       # <>にかこまれた単語をupcaseに。
+:     print;
+: }
+* スカラーデータ
+もっとも単純なデータ構造。ほとんどの場合、数値、文字列のこと。
+** 数値
+整数と浮動小数点数がつかえる。
+perlの内部では、倍精度浮動小数点数として計算される。
+*** 浮動小数点数リテラル
+: 1.23
+: 7e12 # 7.25×10の12乗
+*** 整数リテラル
+: 123_456 # 123,456のこと。perlでは、整数の_は無視される。
+*** 10進数以外のリテラル
+以下のどれも、10進数の255をあらわす。
+: 0377 # 0 ではじまると8進数
+: 0xff # 0x ではじまると16進数
+: 0b11111111 # 0b ではじまると2進数
+** 文字列
+*** 演算子
+: 'hello '. 'world' #'hello world'
+: "fred" x 3 # "fredfredfred"
+** 文字列と数値の自動変換
+演算子によって、数値かいなかを判断
+** 警告メッセージ -wオプション
+: #/usr/bin/perl -w
+とすると、警告メッセージが表示されるようになる。
+よりくわしく知りたい場合は、
+: use diagnostics
+以上のように diagnosticsプラグマを指定する。
+: $ perl -Mdiagnostics ./program.pl
+のように指定してもよい。
+** 比較演算子
+| 比較                     | 数値 | 文字列 |
+| equal                    | \==  | eq     |
+| not equal           | !==  | ne     |
+| less than                | <    | lt     |
+| greater than             | >    | gt     |
+| less than or equal to    | <=   | le     |
+| greater than or equal to | >=   | ge     |
+
+
+
+
+** ブール値
+| 真                       | 偽           |
+| 0以外                    | 0            |
+| ''(空文字列)、'0'以外の文字列 | ''(空文字列) |
+
+** 入力受取 <STDIN>,改行コード削除 chomp()
+: chomp($ine = <STDIN>);
+: if ($line eq "\n") {
+:     print "that was just a blank line!!\n";
+: } else {
+:     print "that line of input was: $line";
+: }
+STDINでうけとった文字列には
+かってに改行コードがはいっているので、chompでとる。
+: chomp($ine = <STDIN>);
+は、以下の2行と同じ動作。
+: $line = <STDIN>;
+: chomp($line);
+
+** 未定義値  undef、 未定義かをしらべる defined()
+- undef
+値が代入されるときに決まる変数。
+: $n = 1;
+: while ($n < 10) {
+:     $sum += $n;
+:     $n += 2;
+: }
+: print $sum."\n"; #=> 25
+sumは、最初は型がさだまっていないが、数値が代入されたため、数値として処理される。
+undef は、代入できる。
+: $sum = undef;
+- defined 関数
+<STDIN>は読み込む行がなくなると、undefを返す。
+値がundefであって、空文字列ではないことを確かめるには、defined関数をつかう。
+: $madonna = <STDIN>;
+: if ( defined($madonna)) ) {
+:     print "the input was $madonna";
+: } else {
+:     print "no input available\n";
+: }
+
+
+* リストと配列
+
+* サブルーチン
+
+* 入出力
+
+* ハッシュ
+
+* 正規表現の世界
+
+* 正規表現によるマッチ
+
+* 正規表現によるテキスト処理
+
+* さまざまな制御構造
+
+* Perlモジュール
+
+* ファイルテスト
+
+* ディレクトレリ操作
+
+* 文字列処理とソート
+
+* スマートマッチとgiven-when
+
+* プロセス管理
+
+* 上級テクニック
+

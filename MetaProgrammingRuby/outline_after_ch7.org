@@ -1,0 +1,142 @@
+* 7章 ActiveRecordの設計
+今回のバージョンは2.3.2のもの。
+
+** ActiveRecord::Base
+まずは[[file:activerecord-2.3.2/lib/active_record.rb][active_record.rb]]から。
+
+*** Kernel#autoload モジュール読み込みのときに、実行する
+たとえば
+  autoload :Base, 'active_record/base'
+だと
+[[file:activerecord-2.3.2/lib/active_record/base.rb][./active_record/base.rb]]を読み込み、クラスを定義する。
+ここには、id,save,delete,find,firstなどが定義されている。
+- id
+      def id
+        attr_name = self.class.primary_key
+        column = column_for_attribute(attr_name)
+
+        self.class.send(:define_read_method, :id, attr_name, column)
+        # now that the method exists, call it
+        self.send attr_name.to_sym
+
+      end
+
+- find
+      def find(*args)
+        options = args.extract_options!
+        validate_find_options(options)
+        set_readonly_option!(options)
+
+        case args.first
+          when :first then find_initial(options)
+          when :last  then find_last(options)
+          when :all   then find_every(options)
+          else             find_from_ids(args, options)
+        end
+      end
+
+      # A convenience wrapper for <tt>find(:first, *args)</tt>. You can pass in all the
+      # same arguments to this method as you can to <tt>find(:first)</tt>.
+      def first(*args)
+        find(:first, *args)
+      end
+
+      # A convenience wrapper for <tt>find(:last, *args)</tt>. You can pass in all the
+      # same arguments to this method as you can to <tt>find(:last)</tt>.
+      def last(*args)
+        find(:last, *args)
+      end
+
+      # This is an alias for find(:all).  You can pass in all the same arguments to this method as you can
+      # to find(:all)
+      def all(*args)
+        find(:all, *args)
+      end
+
+** ActiveRecord::Validations
+*** どこにあるのか
+上記のbase.rbの3137行からいちどモジュールを再オープンしてモジュールをincludeしている
+  Base.class_eval do
+    extend QueryCache::ClassMethods
+    include Validations
+    include Locking::Optimistic, Locking::Pessimistic
+    include AttributeMethods
+    include Dirty
+    include Callbacks, Observing, Timestamp
+    include Associations, AssociationPreload, NamedScope
+    ///....
+  end
+Validations moduleを探す
+[[file:validations.rb][validations.rb]]の301行から。
+
+*** クラスメソッドの提供
+6章で学んだクラス拡張ミックスイン
+def self.included(base)
+  base.include ClassMethods
+end
+module ClassMethods
+end
+をつかって、インクルードしたクラスにクラスメソッドも提供している。
+ここに定義されているのが、minimum,equal_toなど。
+これらはActiveRecord::Baseのクラスメソッド。
+
+** alias_method_chain()の定義
+[[http://www.rubydox.net/class/activesupport/2.3.2/ActiveSupport%3A%3ACoreExtensions%3A%3AModule][active support]]に定義してある。
+
+:def alias_method_chain(target, feature)
+
+メソッドに!か?がついていたらとりのぞき、aliased_targetに代入
+!?は、あとでもどすので、punctuationに代入
+:  aliased_target, punctuation = target.to_s.sub(/([?!=])$/, ''), $1
+ブロックがあれば、yieldして、あとで上書きできるようにしておく
+:  yield(aliased_target, punctuation) if block_given?
+
+:  with_method, without_method =
+:     "#{aliased_target}_with_#{feature}#{punctuation}",
+:     "#{aliased_target}_without_#{feature}#{punctuation}"
+
+呼び出し元のメソッド sample()は
+
+sample_without_#{feature} というエイリアスに、
+sample()は、sample_with_#{feature} のエイリアスに。
+
+:  alias_method without_method, target
+:  alias_method target, with_method
+
+:  case when public_method_defined?(without_method) public target
+:  when protected_method_defined?(without_method)
+:    protected target
+:  when private_method_defined?(without_method)
+:    private target
+:  end
+:end
+** alias_method_chain()の使いかた
+こうすることで、Validationsの
+saveは、
+saveは、save_with_validationのエイリアスとなり、
+save_without_validationが元のsaveになる
+
+:    def self.included(base) # :nodoc:
+:      base.extend ClassMethods
+:      base.class_eval do
+:        alias_method_chain :save, :validation
+:        alias_method_chain :save!, :validation
+:      end
+
+:      base.send :include, ActiveSupport::Callbacks
+:      base.define_callbacks *VALIDATIONS
+:    end
+
+つまり1007行の
+:    def save_with_validation(perform_validation = true)
+:      if perform_validation && valid? || !perform_validation
+:        save_without_validation
+:      else
+:        false
+:      end
+:    end
+がsaveとして呼び出せるようになる。
+* 8章 ActivoRecordの中身
+** ActiveRecordの動的属性の追加
+
+** ActiveRecord::method_mising()

@@ -1,0 +1,27 @@
+#!/bin/sh
+cat file |
+    filter1 |
+    filter2 |
+    while read LINE
+    do
+        ...
+    done
+
+cat file1 file2 file3 | filter1 | filter2
+
+
+cat file |
+    sed -e "s/ABC/DEF/g" |
+    sed -e "s/HIJ/DEF/g" |
+    while read LINE
+    do
+        ...
+    done
+
+cat file |
+    sed -e "s/ABC/DEF/g" \
+        -e "s/HIJ/DEF/g" |
+    while read LINE
+    do
+        ...
+    done

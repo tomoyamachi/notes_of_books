@@ -1,0 +1,21 @@
+#変数の初期化
+FLAG=FALSE
+VALUE=
+OPT=
+
+#オプションとして「f」をとり、そのあとに[v]というparameterがはいる。
+#値を必要とするものは、そのあとに(:)をつかう。
+while getopts fv: OPT
+do
+  case $OPT in
+    f) FLAG=TRUE
+       ;;
+    v) VALUE=$OPTARG
+       ;;
+    \?) echo "Usage: $0 [-f] [-v value]" 1>&2
+        exit 1
+        ;;
+  esac
+done
+
+shift 'expr $OPTIND - 1'

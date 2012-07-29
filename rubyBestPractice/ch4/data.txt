@@ -1,0 +1,6 @@
+abc
+total: 18
+def
+total: 27
+ghi
+total: 47

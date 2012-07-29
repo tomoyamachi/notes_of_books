@@ -1,0 +1,663 @@
+* 第1章 オブジェクトモデル
+** チェックリスト
+- オブジェクトは複数のインスタンス変数とクラスへのリンクで構成されている
+- クラスはClassクラスのオブジェクト。クラス名は単なる定数。
+- ClassはModuleのサブクラス。モジュールはメソッドを集めたもの。
+- クラスはそれぞれBasicObjectまで続く継承チェーンを持っている
+- メソッド呼び出しのとき Rubyはレシーバのクラスに「一歩右に進む」、それから継承チェーンを「上へ向かってすすむ」。メソッドを発見するか、継承チェーンが終わるまで続く。
+- クラスがモジュールをインクルードすると、そのクラスの真上の継承チェーンにモジュールが挿入される。
+- メソッドを呼び出すとき、レシーバが self になる。
+- モジュールを定義すると、モジュールが self になる。
+- インスタンス変数は、selfのインスタンス変数。
+- レシーバを明示せずメソッド呼び出しすると、selfのメソッドとして処理される。
+** 1.2 オープンクラス
+Stringクラスを呼びだすだけで、メソッドが追加できる。
+- Rubyのclassキーワードは、クラス宣言というよりもスコープ演算子のようなもの。
+このように既存のクラスを再オープンして、修正できる。標準クラスでさえも。
+この技術がオープンクラス。
+
+問題点
+- すでにあるメソッド名を追加すると、メソッドが反映されず、エラーになる。
+- このような安易なパッチを、モンキーパッチとよぶ。
+
+** 1.3 クラスの真実
+*** オブジェクトに含まれるインスタンス変数を表示。
+        Object#instance_variables
+        Object#methods
+
+*** インスタンスメソッドとメソッドの違い
+インスタンスメソッドはクラスに注目、メソッドはオブジェクトに注目
+: String.instance_methods == "ac".methods
+: String.methods /= "ac".methods
+- クラスはオブジェクト。Classクラスのインスタンスに、インスタンスメソッド一覧とスーパークラスのリンクがついたもの。
+- ClassクラスはModuleクラスのサブクラス
+- オブジェクトはインスタンス変数の集まりに、クラスへのリンクがついたもの
+
+
+*** クラスとモジュールの使いわけ
+モジュールはインスタンスメソッドの集まり。
+クラスはモジュールにsuperclassやnewなどのメソッドを追加しただけ。
+
+ほとんどの場合、どちらを使っても問題ないが、用途を分けておけばコードが分かりやすくなる。
+- モジュールはインクルードされるもの、
+- クラスはインスタンス生成、継承をするときに使う。
+
+モジュールの現在のパスを表示したければ
+: Module.nesting()
+
+** 1.5メソッドを呼び出すときに何が起きているの?
+
+*** メソッドを呼び出すとき、2つのことを行う
+- 1.メソッドを呼び出す。(メソッド探索)
+- 2.メソッドを実行する。(selfをつかう)
+*** メソッドを呼び出す
+モジュールをクラスにインクルードするとき、無名クラスを使ってモジュールをラップし、継承チェーンに挿入。
+:         module M
+:           def my_method
+:             "M#my_method"
+:           end
+:         end
+:
+:         class C
+:           include M
+:         end
+:
+:         class D < C; end
+:         D.new.my_method ## => "M#my_method"
+これをインクルードクラス(プロキシクラス)と呼ぶ
+
+
+
+
+**** Kernel
+rubyには、どこからでも呼び出せるメソッドがある。
+これはObjectクラスが Kernelモジュールをインクルードしているから。
+すべてのオブジェクトの継承チェーンにKernelモジュールが入っている。
+だから、Kernelにメソッドを追加すれば、すべてのオブジェクトでつかえる。
+
+たとえば rubygems.rbには
+: module Kernel
+:   def gem(gem_name, *version_requirements)
+:  ///
+とできる。
+
+**** selfの発見
+Rubyのコードはカレントオブジェクト (self) の中で実行される。
+- メソッドを呼び出すときは、レシーバがselfになる。
+- レシーバとは、呼び出すメソッドが属するオブジェクトのこと。
+- その時点で、すべてのインスタンス変数はselfのインスタンス変数になる。
+- また、レシーバを明示せずにメソッドを呼び出すと、selfに対するメソッド呼び出しになる。(つまり呼び出し元のオブジェクトから)
+
+**** privateとは
+プライベートメソッドは、暗黙的なレシーバselfに対するメソッドでなければならない。
+つまり同一クラス内で、
+: self.private_method
+は動かないが、
+: private_method
+なら動く。
+
+
+
+* 第2章 メソッド
+** 動的メソッド
+*** 動的ディスパッチ obj.send()
+: Object.send(:method_name, parameter)
+でコード実行時に呼び出すメソッドを決められる。
+
+*** 動的メソッド obj.define_method()
+: Module#define_method()
+を使うと、メソッドをその場で定義できる。
+
+** method_missing()のオーバーライド
+*** 使用例
+: class Lawyer
+:   def method_missing(method, *args)
+:     puts"#{method}(#{args})"
+:     puts "block" if block_given?
+:   end
+:
+:   bob = Lawyer.new
+:   bob.test(3,4) do
+:     "Sample block"
+:   end
+: end
+実行結果
+: test([3,4])
+: block
+
+このように、存在しないはずのメソッドが呼び出せる。
+これをゴーストメソッドと呼ぶ。
+
+*** 起こりうる問題 メソッド名の衝突
+すでにあるメソッド名で呼び出すと、method_missing()で対応できない。
+解決するには
+: Module#undef_method() => 継承したメソッドも含めた、すべてのメソッドを削除
+: Module#remove_method() => レシーバのメソッドは削除するが、継承したメソッドは削除しない
+をつかう。
+
+: class Computer
+:   instance_methods.each do |m|
+:     undef_method m unless m.to_s =~ /^__|object_id|method_missing|respond_to?/
+:   end
+:
+:   def method_missing(method, *args)
+:     puts "method missing"
+:   end
+: end
+: c = Computer.new
+: c.no_method
+: 実行結果
+: "method missing"
+
+* 第3章 ブロック
+** ブロックの基本
+*** yieldキーワードを使ってコールバック
+: def sample(a,b)
+:   a+yield(a,b)
+: end
+: sample(1,2){|x,y| (x + y)} #=> 4
+:
+*** Kernel#block_givenで確認できる
+** スコープの概要
+*** スコープと束縛
+スコープを変えると、束縛は新しい束縛と交換される。
+特に、ローカル変数はスコープごとに毎回変わる。
+
+*** スコープゲート
+スコープが切り替わる場所(スコープゲート)は3つ。
+スコープゲートを飛び越えたければ、スコープゲートをメソッド呼び出しにする。
+**** クラス定義 class
+**** モジュール定義 module
+**** メソッド呼び出し def
+***  スコープのフラット化
+スコープゲートをつくらないことで、スコープを変更させない。
+2つのスコープを一緒の場所に押込むことで、変数を共有する。
+これをフラットスコープと呼ぶ。
+
+- class宣言の変わりに、Class.new()。
+- module宣言の代わりに、Module.new()。
+以上のものは、ブロックを渡せば、クラスにインスタンスメソッドが定義できる。
+- defの代わりに、Module#define_method()
+
+: var = "Scope gate"
+: MyClass = Class.new do
+:   puts "#{var} in class"
+:
+:   define_method :my_method do
+:     puts "#{var} in method"
+:   end
+: end
+: MyClass.new.my_method #=> Scope gate in class, Scope gate in method
+** ブロックをクロージャとして使う
+*** ブロック単体では実行できない
+どんなコードも、変数やselfといった環境(束縛)が必要。
+ブロックは、コードと束縛の集まりで構成される
+*** クロージャ
+ブロックは、メソッドにある変数でなく、ブロックが定義されたときの変数を見る。
+
+** instance_eval()でスコープを操作
+
+*** instance_eval()の概要
+instance_eval()は、オブジェクトをブロックで評価できる。
+instance_eval()でselfに変更を加えると、束縛が変更できる。
+
+: obj = String.new
+: v = 2
+: obj.instance_eval { @v = v } #=> 2
+: obj.instance_eval { @v } #=> 2
+instance_evalに渡したブロックをコンテキスト探査機と呼ぶ。
+
+*** クリーンルーム
+ブロックを評価するためだけにオブジェクトを生成することがある。
+このオブジェクトをクリーンルームと呼ぶ。
+
+** 呼び出し可能オブジェクトのチェックリスト
+#ブロック
+定義されたスコープで評価
+#Proc
+Procクラスのオブジェクト。定義されたスコープで評価
+#lambda
+Procクラスのオブジェクト。Procとは、引数やreturnの挙動などの違いがある。
+定義されたスコープで評価
+#メソッド
+Methodクラスのオブジェクト。オブジェクトにひもづけられ、オブジェクトのスコープで評価。
+
+** Proc/lambda でブロックを呼び出し可能オブジェクトに
+*** 呼び出し可能オブジェクト
+「コードを保管して、あとで呼び出す」オブジェクトのこと。
+Rubyには、おおまかに4つ。
+- ブロック
+- Proc (ブロックがオブジェクトになったもの)
+- lambda (Procの変形)
+- メソッド
+*** Procオブジェクト
+ブロックはオブジェクトではない。
+ブロックをオブジェクト化したものが、Proc。
+
+Proc.new()にブロックを渡し、
+Proc.call()で、ブロックを呼び出し評価する。
+: inc = Proc.new {|x| x + 1}
+: inc.call(2) #=> 3
+
+ブロックをProcに変換するためのカーネルメソッドが、
+: lambda()
+: proc()
+
+*** &修飾
+特定のブロックを使いたい場合、yieldでは役不足になる。
+このとき、引数列の最後に、&の印のついた引数を置くことで解決できる。
+
+**** 他のメソッドにブロックを渡したい
+: def math(a,b)
+:   yield(a,b)
+: end
+:
+: def teach_math(a,b, &operate)
+:   puts math(a,b, &operate)
+: end
+:
+: teach_math(2,3) { |x,y| x + y } #=> 5
+
+**** ^ブロックをProcに変換したい
+: def create_proc(&the_proc)
+:   the_proc
+: end
+: p = create_proc{ |name| "Hello, #{name}." }
+: puts p.class
+: puts p.call("Bill")
+
+
+*** lambdaの記法
+Proc.new(と同じように書ける。
+: p = lambda {|x| x + 1 }
+また1.9からは、矢印で書くこともできるようになった。
+: p = ->(x){x + 1}
+
+*** Proc と lambda の違い
+ほとんどのrubyerは、lambdaを第一選択にする。
+
+**** 違い1 returnの意味
+:     def double(callable)
+:       callable.call * 2
+:     end
+:
+:     # lambda
+:     l = lambda { return 10}
+:     puts double l #=> 20
+:
+:     # Proc.new
+:     p1 = Proc.new { 10 }
+:     puts double p1 #=> 20
+:
+:     p2 = Proc.new { return 10 }
+:     puts double p2 #=> unexpected return (LocalJumpError)
+
+lambdaは、lambdaから戻る
+Procは、Procが定義されたスコープから戻る。
+たとえば、以下の例。
+:     def cant_double
+:       p = Proc.new {return 10}
+:       result = p.call
+:       return result * 2 # ここまで来ない
+:     end
+:
+:     cant_double #=> 10
+:
+**** 違い2 引数(arity)
+lambdaは引数の数に厳格。(メソッドに近い)
+Proc.new()は、寛容。
+:     l_arity = lambda { |a,b| [a,b] }
+:     p_arity = Proc.new { |a,b| [a,b]}
+:
+:     p p_arity.call(1)     #=> ArgumentError
+:     p l_arity.call(1)     #=> [1,nil]
+:     p p_arity.call(1,2)   #=> [1,2]
+:     p l_arity.call(1,2)   #=> [1,2]
+:     p p_arity.call(1,2,3) #=> [1,2]
+:     p l_arity.call(1,2,3) #=> ArgumentError
+**** メソッドを呼び出し可能オブジェクトに Object#method()
+以下のようにすると、メソッドをMethodオブジェクトとして取得できる。
+Method#call()で実行。
+ただし、Methodオブジェクトはlambdaと違い、属するオブジェクトのスコープで評価される。
+:     class CallMethod
+:       def initialize(value)
+:         @x = value
+:       end
+:       def my_method;puts @x;end
+:     end
+:     obj = CallMethod.new(1)
+:     m = obj.method :my_method
+:     m.call #=> 1
+:     obj.instance_eval { @x = 2 }
+:     m.call #=> 2
+MethodオブジェクトはMethod#to_proc()でProcオブジェクトに変換できる。
+
+* 第4章 クラス定義
+
+class キーワードは、オブジェクトの動作を規定するのではなく、コードを実行するということ。
+
+** クラスの定義チェックリスト
+
+*** クラス定義のなかでは、カレントオブジェクト self は定義されたクラス。
+: result = class MyClass
+:   self
+: end
+: puts result #=> MyClass
+
+*** Rubyのインタプリタは常にカレントクラス(モジュール)の参照を追跡している。
+ def で定義されたすべてのメソッドは、カンレントクラスのインスタンスメソッド。
+ クラス定義のなかでは、カレントクラスはself と同じ。つまりself は定義されたクラス。
+
+
+: class MyClass
+:   #
+:   def my_method
+:     #
+:   end
+: end
+
+*** クラスへの参照を持っていれば、クラスは class_eval() もしくはmodule_eval()でオープンできる。
+: def add_method_to(a_class)
+:   a_class.class_eval do
+:     def m; "Hello"; end
+:   end
+: end
+:
+: add_method_to String
+: puts "abc".m #=> Hello
+: puts "abc".methods.grep /^m$/ #=> m
+
+** クラスインスタンス変数 @xx
+Rubyでは、すべてのインスタンス変数は self に属していると解釈する。
+クラス定義のなかでは、self はクラスのこと。
+だからインスタンス変数はクラスに属しているのであり、クラスのオブジェクトのインスタンス変数とは違う。
+
+** classキーワードをつかわずに、クラス継承
+: class MyClass < Array
+:   def m;"Hello";end
+: end
+
+を、classをつかわずに書くと
+
+: c = Class.new(Array) do
+:   def m;"Hello";end
+: end
+*** 無名クラスに定数を割り当てる。
+: MyClass = c
+と書き表せる。
+
+** 特異メソッド
+*** 使用例1 特定のオブジェクトを拡張
+: str = "this is test"
+: def str.all_up
+:   self.upcase
+: end
+:
+: def metho(str)
+:   puts str.all_up
+: end
+:
+: metho str #=> "THIS IS TEST"
+: metho "test #=> Error"
+
+*** クラスメソッドは、クラスの特異メソッド!!
+
+以下の2つは、おなじ書式。
+: obj.a_method
+: MyClass.a_class_method
+
+
+また
+: class MyClass
+:   def self.a_class_method;end
+: end
+と
+: def MyClass.a_class_method;end
+
+は同じ。
+一度クラスを開いて、そこにメソッドを定義する方法もある。
+: class MyClass
+:   class << self
+:     def a_class_method;end
+:   end
+: end
+
+** 特異クラスの場所は?
+
+オブジェクトは、表面とちがう特別なクラス(特異クラス)をもっている。
+以下のようにすると見つけることができる。
+: obj = Object.new
+: eigenclass = class << obj
+:   self
+: end
+: puts eigenclass.class #=> Class
+
+** 特異クラスの特徴
+- 1.オブジェクトの特異メソッドが住む場所
+- 2.インスタンスが1つしか持てない。 (シングルトンクラスとも呼ばれる)
+** エイリアス
+*** メソッドエイリアス alias
+メソッドにエイリアス(別名)をつけたければ、aliasキーワードを使えばいい。
+: class MyClass
+:   def my_method;"my method is here"; end
+:   alias :m :my_method
+: end
+:
+: obj = MyClass.new
+: p obj.m #=>"my method is here"
+*** アラウンドエイリアス
+あるメソッド(a)のエイリアス(b)をつくり、
+aのメソッド名で、あたらしいメソッドを定義する。
+新しいメソッドのなかで古いメソッドを呼び出すことで再帰的に参照する。
+
+たとえば + の答えにつねに1を加えた数を返すためには
+: class Fixnum
+:   alias :old_plus :+
+:
+:   def +(n)
+:     self.old_plus(n).old_plus(1)
+:   end
+: end
+:
+: puts 4 + 3 ## 8
+
+* 第5章 コードを記述するコード
+** attr_checked()の実装 構想
+[[file:attr_checked_spec.rb][このコード]]を通すモジュール CheckedAttributesを考える。
+手順
+- 1.eval()を使って、add_checked_attribute()というカーネルメソッドを書き、クラスに属性を追加。
+- 2.add_checked_attribute()をリファクタリングして、eval()を削除
+- 3.ブロックで属性を検証する
+- 4.add_checked_attribute()をすべてのクラスで利用可能な attr_checked()という名前のクラスマクロに変更。
+- 5.フックを使って、attr_checked()を任意のクラスに追加するモジュールを書く。
+
+** Kernel#eval 文字列を実行し、結果を返す
+: eval("1+3") #=> 4
+
+
+**** irbで学ぶ eval の引数
+: irb:
+: eval(statements,@binding,file,line)
+
+statement "コードの文字列"
+@binding Bindingオブジェクト
+***** Bindingオブジェクト Kernel#binding
+Kernel#bindingをつかってBindingオブジェクトをつくると、
+そのオブジェクトが定義されたスコープでコードが実行できる。
+: class A
+:   def m
+:     @x = 1
+:     binding
+:   end
+: end
+: b = A.new.m
+:
+: eval "@x" #=> nil
+: eval "@x",b #=> 1
+file,line 処理中のファイル名と行番号。
+***** コード文字列とプロックの相似点
+実は class_eval, instance_evalもコード文字列を扱える。
+
+: > array = [1,2,3]
+:  => [1, 2, 3]
+: > array.instance_eval "self[0] =4"
+:  => 4
+: > array
+:  => [4, 2, 3]
+: > array.instance_eval {self[1] = 5}
+:  => 5
+: > array
+:  => [4, 5, 3]
+
+しかし 基本的に、ブロックを用いたほうが安全。
+
+***** コード文字列の危険 コードインジェクション を防ぐ
+知らないあいだに、 mysqlインジェクションみたいなのされないようにするには、セーフレベルを設定すればいい。
+&SAFEというグローバル変数で設定でき、デフォルトは0.
+数字があがるごとに、汚染された情報は制限をうけるようになる。
+
+: > s = gets()
+: x = 1 + 4
+:  => "x = 1 + 4\n"
+: > eval s
+:  => 5
+: > $SAFE=1
+:  => 1
+: > eval s
+: SecurityError: Insecure operation - eval
+
+汚染されたかどうかはObject#tainted?()で確認できる。
+
+** attr_checkeed()の実装 ステップ1
+: class Person;end
+: def add_checked_attributes(clazz,attribute)
+:   eval <<END
+:     class #{clazz}
+:       def #{attribute}=(value)
+:         raise 'Invalid attribute' unless value
+:         @#{attribute} = value
+:       end
+:
+:       def #{attribute}()
+:         @#{attribute}
+:       end
+:     end
+: END
+: end
+:
+: describe Person do
+:   before :each do
+:     add_checked_attributes(Person, :age)
+:     @p = Person.new
+:   end
+:
+:   it "#age == 17 return true" do
+:     @p.age = 15
+:     lambda{ @p.age == 15 }.should be_true
+:   end
+:
+:   it "#age = nil raise Error" do
+:     lambda{ @p.age = nil }.should raise_error
+:   end
+:
+:   it "#age = false raise Error" do
+:     lambda{ @p.age = false }.should raise_error
+:   end
+:
+: end
+:
+** attr_checkeed()の実装 ステップ2 evalの削除
+ステップ1のevalはコード文字列がふくまれている。
+将来のことを考え、コードインジェクションを防ぐため、リファクタリングしやすくするため、evalをなくす。
+
+
+: def add_checked_attributes(clazz,attribute)
+:   clazz.class_eval do
+:     define_method "#{attribute}=" do |value|
+:       raise 'Invalid attribute' unless value
+:       instance_variable_set("@#{attribute}", value)
+:     end
+:
+:     define_method "#{attribute}" do
+:       instance_variable_get "@#{attribute}"
+:     end
+:   end
+: end
+** attr_checkeed()の実装 ステップ3 ブロックの検証
+** attr_checkeed()の実装 ステップ4 クラスマクロへ変更
+: class Class
+: この中へ押込む
+: end
+** attr_checkeed()の実装 ステップ5 フックメソッドをつかって、モジュールとして追加
+*** フックメソッド 特定のイベントにフックをかける
+Rubyに用意されている、メソッドにイベントが発生したときに実行されるものがある
+たとえば Class#inherited()は、クラスが継承されたとき、
+Module#included()は、モジュールが読み込まれたときに実行される。
+
+これらは、デフォルトではなにもしないので、オープンクラスにしてオーバーライドする。
+
+: module M
+:   def self.included(othermod)
+:     puts "M は #{othermod}にインクルードされた"
+:   end
+: end
+: class C
+:   include M
+: end
+: #=>M は Cにインクルードされた
+
+*** Moduleのメソッドをクラスメソッドとしてよみこむ
+1.フックメソッド included()を呼び出す
+2.フックメソッドで、インクルードする側のクラス(includer)をClassMethodsモジュールで拡張
+3.extend()メソッドで、includerの特異クラスにいるClassMethodsからメソッドをインクルードする
+
+: module M
+:   def self.included(base)
+:     base.extend(ClassMethods)
+:   end
+:
+:   module ClassMethods
+:     def x
+:       "x"
+:     end
+:   end
+: end
+*** 実際のコード
+: module CheckedAttributes
+:   def self.included(base)
+:     base.extend(ClassMethods)
+:   end
+:
+:   module ClassMethods
+:     def attr_checked(attribute, &validation)
+:       define_method "#{attribute}=" do |value|
+:         raise 'Invalid attribute' unless validation.call(value)
+:         instance_variable_set("@#{attribute}", value)
+:       end
+:
+:       define_method "#{attribute}" do
+:         instance_variable_get "@#{attribute}"
+:       end
+:     end
+:   end
+: end
+:
+: class Person
+:   include CheckedAttributes
+:
+:   attr_checked :age do |v|
+:     v <= 18
+:   end
+: end
+
+* 便利なTips
+***** irbでオブジェクトを追跡
+irb 上で、irb obj とすると、そのオブジェクトを追跡できる。
+***** ヒアドキュメント 複数行の文字列をつくる
+: s = <<END
+:   first sentence.
+:   second sentence.
+: END
+: puts s
+: #=> first sentence.
+:     second sentence.

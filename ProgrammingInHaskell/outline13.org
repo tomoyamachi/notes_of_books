@@ -1,0 +1,129 @@
+* 13章 プログラムの論証
+等式推論の復習、数学的帰納法
+** 等式推論
+乗算は交換法則、加算は結合法則、乗算は加算に対して左右の分配法則。
+これらを数学を用いて、Haskellで論証する。(==などの組込み演算子は使わない。)
+
+関数は、順番に依存しない等式を使って定義するのが望ましい。
+合致する順が依存しないパターンを「互いに素」「重複なし」と言う。
+
+たとえば、isZeroについて
+: isZero :: Int -> Bool
+: isZero 0 = True
+: isZero n = False
+上の式だと、それぞれの等式が他と独立した論理的な性質であるとみなことができない。
+なぜなら isZero n = False だけだと成り立たないから。(行単独では成り立たない。)
+
+以下のように書くと、n/=0のとき、FalseはisZero nに書き換え可能になる。
+: isZero :: Int -> Bool
+: isZero 0 = True
+: isZero n | n /= 0 =False
+「Falseはn/=0のとき」
+** 整数に対する数学的帰納法
+以下のような定義のreplicateがあるとき、 length (replicate n c) = n であることを証明する。
+: replicate :: Int -> a -> [a]
+: replicate 0 _ = []
+: replicate n c = c : replicate (n-1) c
+n = 0のとき
+: length (replicate 0 c)
+:        = length []
+:        = 0
+n = xのとき、下の式が成り立つと仮定すると、
+: length (replicate x c) = x
+n = x+1のときは以下のようになる。
+: length (replicate (x+1) c)
+:        = length (c:replicate x c)
+:        = 1 + length (replicate x c)
+:        = 1 + x
+:        = x + 1
+** リストに対する数学的帰納法
+*** 連結を除去する
+連結演算子++は効率が悪い。
+たとえばreverse
+: reverse [] = []
+: reverse (x:xs) = reverse xs ++ [x]
+だと、すべての処理ごとにリストが評価される。
+
+ほしいのは反転させたリストだけなので、
+++をつかわず、蓄積変数をつかう関数reverse'を考える。
+: reverse' :: [a] -> [a] -> [a]
+: reverse' [] ys = ys
+: reverse' (x:xs) ys = reverse' xs (x:ys)
+まずは、その関数が、既存のreverseのように成り立つことを、証明する。
+**** reverse'の証明
+基底部
+: reverse' [] ys
+: = reverse [] ++ ys
+: = ys
+再帰部
+: reverse' (x:xs) ys
+: = reverse (x:xs) ++ ys
+: = reverse xs ++ ([x] ++ ys)
+: = reverse xs ++ (x:ys)
+: = reverse' xs (x:ys)
+となる。
+
+**** reverse'をつかうと、以下のように ++ をつかわない reverse が定義できる。
+: reverse xs = reverse' xs []
+同様のことは、foldlを用いても実装できる。
+: reverse = foldl (\xs x -> x:xs) []
+** コンパイラの正しさ
+
+: -- 式の型をつくり、式を評価する関数をつくる。
+: data Expr = Val Int | Add Expr Expr
+: eval :: Expr -> Int
+: eval (Val n) = n
+: eval (Add x y) = eval x + eval y
+: -- スタックを使って、コンパイルしたあと実行するコードを書く。
+: type Stack = [Int]
+: type Code = [Op]
+: data Op = PUSH Int | ADD  deriving (Show)
+: -- コンパイル後のコードを評価する関数をつくる。
+: -- PUSHでスタックの上に新しい整数を置く。ADDはスタック上の2つの整数を加算し、置き換える。
+: exec :: Code -> Stack -> Stack
+: exec [] s = s
+: exec (PUSH n:c) s = exec c (n:s)
+: exec (ADD :c) (m:n:s) = exec c (n+m:s)
+: -- 式をコードに翻訳(コンパイル)する関数を定義
+: comp :: Expr -> Code
+: comp (Val n) = [PUSH n]
+: -- ADDの定義より、 y を一番上のスタックにしなければならない。
+: comp (Add x y) = comp x ++ comp y ++ [ADD]
+: -- 式 (2+3)+4 をつくる。
+: e = Add (Add (Val 2) (Val 3)) (Val 4)
+
+: > eval e
+: 9
+: > comp e
+: [PUSH 2,PUSH 3,ADD,PUSH 4,ADD]
+: > exec (comp e) []
+: [9]
+このとき
+: exec (comp e) [] = [eval e]
+を証明する。
+** exec (comp e) [] = [eval e] の証明
+上でやったリストと同じように、++をつかわない関数comp'を考える
+: comp' e c = comp e ++ c
+実際に関数を定義
+: comp' :: Expr -> Code -> Code
+: comp' (Val n) c = PUSH n:c
+: comp' (Add x y) c = comp' x (comp' y (ADD:c))
+以上の定義をつかうと
+: comp e = comp' e []
+となる。最初の式を証明するには、exec (comp' e []) []   = exec [] (eval e:[])を証明すればいい。
+:  exec (comp' e []) []   = exec [] (eval e:[])
+:  #=> exec (comp e ++ []) [] = eval e:[]
+:  #=> exec (comp e) []       = [eval e] -- 最初の式と同じ
+*** e = Val n の証明
+: exec (comp' (Val n) c) s   -- comp' を適用
+: = exec (PUSH n:c) s          -- exec を適用
+: = exec c (n:s)               -- eval (Val n) を逆に適用
+: = exec c (eval (Val n)):s
+*** e = Add x y の証明
+: exec (comp' (Add x y) c) s         -- comp' を適用
+: = exec (comp' x (comp' y (ADD:c))) s -- 帰納法の仮定
+: = exec (comp' y (ADD:c)) (eval x:s)  -- 帰納法の仮定
+: = exec (ADD:c) (eval y:eval x:s)     -- exec を適用
+: = exec c (eval y + eval x:s)         -- eval (Add x y) を逆に適用
+: = exec c (eval (Add x y):s)
+*** 証明できた

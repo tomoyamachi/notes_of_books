@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "hello"
+STR=abc
+case "$STR" in
+  ABC) echo "str = ABC" ;;
+  abc) echo "str = abc" ;;
+esac
+# ./casefileで実行できる。

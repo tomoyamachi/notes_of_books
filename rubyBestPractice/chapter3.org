@@ -1,0 +1,70 @@
+* 動的な機能を使いこなす
+すべてがオブジェクトであることを理解すると、興味深いアプリケーションを生み出すことができる。
+** BlankSlate : ステロイドが強化されたBasic Object
+[[file:ch3/blankslate.rb]]
+
+インスタンスメソッドの中に含まれていて、かつ、__ではじまらずinstance_evalでもないものを、
+@hidden_methodsの中に格納して、undef_methodする。
+:     def hide(name)
+:       if instance_methods.include?(name) and name !~ /^(__|instance_eval)/
+:         @hidden_methods ||= {}
+:         @hidden_methods[name] = instance_method(name)
+:         undef_method name
+:       end
+:     end
+
+隠したメソッドを再定義。白紙状態のオブジェクトから呼び出せるようにする。
+:     def reveal(name)
+:       unbound_method = find_hidden_method(name)
+:       fail "dont know #{name}" unless unbound_method
+:       define(name,unbound_method)
+:     end
+** 柔軟なインターフェイスを作る
+*** instance_evalをオプション化する
+Proc#arityで、コードブロックに引数がいくつあるのかがわかる。
+: lambda {|x,y,z| x+y+z}.arity
+
+*** method_missing(), send()を使ってメッセージを扱う
+: def method_missing(name, *args, &block)
+:   puts "Call #{name} with #{args.inspect}"
+: end
+: 1.no_method
+: 2.foo("a","b")
+
+*** 2つの目的を兼ねたアクセサ
+self.foo = barのときは、
+: alias_method :foo= :foo
+とすると、
+: self.foo = bar
+: self.foo bar
+の違いがなくなる。
+*** まとめ
+Proc#arityによる引数チェックをすると、instance_evalを使うか、オブジェクトを引数としてブロックに渡すのかの選択肢ができる
+method_missing , send()をつかうと、動的メソッド生成ができる。
+method_missingをつかうときは、処理できない呼び出しがチェーンを遡って探せるよう,必ずsuper()をつかう。これにより、NoMethodErrorをつくれる。
+attr_writerは、
+** オブジェクトごとの振舞い(特異メソッド)を実装する
+class A
+  class << self
+    def foo
+      "hi"
+    end
+  end
+end
+
+オブジェクトごとの振舞いは、クラスレベルで定義したくないときに使うと、役に立つ
+class <<objによって、オブジェクトの特異クラスにアクセスできる。
+define_method()で定義したメソッドは、特異クラス上でプライベートになるから、利用するときにはsendが必要
+** 既存のコードを拡張、変更する(オープンクラス)
+*** オブジェクトごとの変更
+extendをつかう。[[file:ch3/use_extend.rb]]
+それぞれのメソッドを再定義するときに同じ名前がつかえるから、名前の衝突がおきない。
+
+*** まとめ
+すべてのクラスがオープンだから、オブジェクト定義は最終的なものではなく、新しい振舞いを実行時に追加できる
+名前の衝突を避けるため、instance_methodsなどのような条件文をつかうと、定義済みかどうかを確認できる
+意図的にコードを変更するときalias_methodをつかうと、元のメソッドをコピーして、あとでつかえる
+できるかぎりオブジェクトごとの振舞いを拡張するほうが望ましい。extend()が役立つ。
+
+** クラスとモジュールをプログラムでつくる
+

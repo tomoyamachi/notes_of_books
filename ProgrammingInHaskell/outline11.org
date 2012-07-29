@@ -1,0 +1,53 @@
+* 第11章 切符番号遊び
+** この章のプログラムを動かすには
+注. この章のプログラムを実際に動かすと、
+:    No instance for (Show Expr)
+:      arising from a use of `print'
+:    Possible fix: add an instance declaration for (Show Expr)
+:    In a stmt of an interactive GHCi command: print it
+というエラーが出る。Exprをどう表示するか指定してないためのエラー。
+
+ExprをString型に変換するために、Showクラスのshowメソッドをつかう。
+まずはOpをShowクラスのインスタンスにして、showに定義を追加。
+:  instance Show Op where
+:    show Add                   =  "+"
+:    show Sub                   =  "-"
+:    show Mul                   =  "*"
+:    show Div                   =  "/"
+
+Opの定義を使って、ExprもShowクラスのインスタンスに。
+: instance Show Expr where
+:   show (Val n)               =  show n
+:   show (App o l r)           =  bracket l ++ show o ++ bracket r
+:                                 where
+:                                    bracket (Val n) = show n
+:                                    bracket e       = "(" ++ show e ++ ")"
+これで動くようになる。
+
+OpをShowクラスのインスタンスにせず、Exprだけでなんとかすると以下のようになる。このばあい、()が一つ深くなる。
+: instance Show Expr where
+:  show (Val n)       = show n
+:  show (App Add x y) = "(" ++ show x ++ " + " ++ show y ++ ")"
+:  show (App Sub x y) = "(" ++ show x ++ " - " ++ show y ++ ")"
+:  show (App Mul x y) = "(" ++ show x ++ " * " ++ show y ++ ")"
+:  show (App Div x y) = "(" ++ show x ++ " / " ++ show y ++ ")"
+
+** 11.1 導入
+     与えられた[Num]から、目標の数を得るにはどのような式があるのかを調べる
+     目標とする動作例
+:        > solutions [1,3,7,10,25,50] 765
+:        [3*((7*(50-10))-25),(25-10)*(1+50),(25-(3+7))*(1+50)....]
+** 11.2 問題の形式化
+
+** 11.3 総当たり方
+     すべての式を生成する方法。
+     リスト内の数字すべての順列組み合わせをつくり、それぞれの組み合わせ毎に可能な演算すべてをしていく方法。
+     重い。
+
+** 11.4 生成と評価の方法を変える
+     11.3で生成された式で、評価に成功するのは14%。(商が整数にならないetc)
+     有効な式だけを評価すれば、もっと速くなる。
+
+** 11.5 代数的な性質をいかす
+     交換法則、単位元の性質を利用すると、さらに不要な式を排除できる。
+     これは演算子の適用条件を変更することで可能となる。

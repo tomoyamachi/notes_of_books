@@ -1,0 +1,129 @@
+* シェル変数
+** 変数の条件
+[_a-zA-Z0-9]で構成される。
+頭文字は数字以外([_a-zA-Z])。
+つまり、[_a-zA-z][_a-zA-Z0-9]*が適用されるもの。
+
+変数に代入したものは、すべて文字列として認識される。
+変数への代入は、variable=valueという形で実行。
+スペースは区切りとなる。つまり一行に複数代入できる。
+: variable1=value1 variable2=value2 ...
+
+** 変数の呼び出し
+変数名に、$をつける。
+{}で変数名を囲うこともできる。
+以下のようなときに役立つ。
+
+: valiable=10
+: echo ${variable}xxx
+: => 10xxx
+
+変数の条件に合わない文字がある場合は、変数を区切るものとして処理される。
+echo $variable.test.$variable/test
+=> 10.test.10/test
+
+** 値がない変数と、アンデファインド変数(undefined variables)
+: variable1=
+: variable2=""
+:
+: echo $variable1
+: =>
+: echo $variable2
+: =>
+: echo $novariable
+: =>
+
+variable1,2とnovariableは同じように見えるが、
+前者は「ヌルという値が入っている変数」(アンデファインド変数)と考えられ、
+後者は「値がなにも入っていない変数」と解釈される。
+
+これは変数の場合分けのときに必要。
+
+** 未設定の変数の扱い
+
+*** := 値がなければ代入
+: ${variable:=xxx}
+とすると、variableに値がなにも入っていない場合、
+:=以下の値が代入される。
+=だけの場合、アンデファインド変数は代入されない。
+
+
+: $ echo ${abc:=x}
+: x
+: $ echo $abc
+: x
+: $ echo ${abc:=y}
+: x
+: $ abc=
+: $ echo ${abc=z}
+:
+: $ echo ${abc:=z}
+: z
+*** :- 値を代入せず、その値を返すだけ
+
+: $ echo ${def:-xyz}
+: xyz
+: $ echo $def
+
+書き込み禁止の変数にも使える。
+ex) 位置パラメタ
+
+*** :? メッセージを表示する
+
+: $ echo ${ghi:?"this variable is not exist"}
+: bash: ghi: this variable is not exist
+: $ echo ${ghi:?}
+: bash: ghi: パラメータが null または設定されていません
+
+*** :+ 値がなければ何もしない、値があればその値を返す
+
+: $ echo ${jkl:+zzz}
+:
+: $ jkl=test
+: $ echo $jkl
+: test
+: $ echo ${jkl:+zzz}
+: zzz
+: $ echo $jkl
+: test
+
+** 位置パラメタ
+コマンドに渡した引数
+: cat a b c d e f g h i j k
+この場合、
+- $0 - コマンド自身(cat)
+- $1 - 最初の引数(a)
+- $9 - 8番目の引数(i)
+- $# - 引数の個数(10)<=$0は入らない
+10番目以降が欲しいときは、shiftをつかう。
+
+すべての引数
+- $* - まとめて処理を適用
+- $@ - それぞれの引数に処理を適用
+以下のようにすると、"$*"はひとつにまとめられ、"$@"はそれぞれダブルクォートがついているのがわかる。
+: $ ./checkparameter a b c d
+: =========check $* start
+: a b c d
+: =========check $@ start
+: a b c d
+: =========check "$*" size start
+: 1
+: =========check "$@" size start
+: 4
+
+** 書き込み禁止変数
+値を代入することができない。
+
+** その他特殊な変数
+$? 直前のコマンドの実行結果
+$$ 現在動作しているコマンドのプロセスID(ユニークな名前をつけたいときに)
+$! バックグラウンドで走っているコマンドのプロセスID。「wait $!」でプロセスがおわるのを待ったり。
+$- フラグの一覧を表示
+
+** コマンド行上で変数を設定
+下の2つのコマンドはおなじ。
+: CFLAGS=-g make
+: (CFLAGS=-g; export CFLAGS; make)
+
+ほかのプロセスでも使えるようにしているが、
+他のコマンドには影響を与えない。

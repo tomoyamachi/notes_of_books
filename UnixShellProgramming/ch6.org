@@ -1,0 +1,46 @@
+* コマンド行の解析、処理
+** コマンド行とは
+セパレータで分けられた1つのコマンド。
+
+コマンドは以下の規則でならべる
+: command -[options] [parameters]
+
+これ以降 command [-abcf] [-v value] [-x value]
+のように書く。valueには必ず値がひつよう。
+
+引数に「-」が入る場合、[--]をつかう。
+: command -[options] -- -someparam
+
+** オプション処理
+getoptsコマンド
+
+変数の初期化
+: FLAG=FALSE
+: VALUE=
+: OPT=
+オプションとして「f」をとり、そのあとに[v]というparameterがはいる。
+値を必要とするものは、そのあとに(:)をつかう。
+: while getopts fv: OPT
+: do
+:   case $OPT in
+fオプションがあればFLAGを真にする
+:     f) FLAG=TRUE
+:        ;;
+変数の名前を設定
+v:OPTとしているので、$OPTARGに引数が代入される。
+:     v) VALUE=$OPTARG
+:        ;;
+それ以外のオプションがあればエラーを出す。
+:     \?) echo "Usage: $0 [-f] [-v value]" 1>&2
+:         exit 1
+:         ;;
+:   esac
+: done
+:
+: shift 'expr $OPTIND - 1'
+
+追記
+command [-abc] [-v value] [-x value]のときは
+: getopts abcv:x: OPT
+と書く。
+

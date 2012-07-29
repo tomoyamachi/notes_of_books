@@ -1,0 +1,44 @@
+* newtype, data, type
+** newtype コンストラクタ1コだけ
+型としては区別をしたいけど、オーバーヘッドしたくない
+newtype Y = Y Int
+IO関連のものを、SIOと名付けたり。
+
+** data 完全に新しい型をつくる
+コンストラタを複数指定可能
+データに付加情報がつく。
+
+** type
+すでにある型をつかう。
+
+* 使われている場所
+金融関連
+- 早いパーサ。
+- エラーが出ない。
+- 処理が早い。
+
+* compareについて
+case compare n in
+     LT -> xxx
+     EQ -> yyy
+     GT -> zzz
+
+compareで一回、コンストラクタ(LTの部分)でさらに一回評価。
+LT,EQなどをまとめたいい場合
+case compare n in
+     GT -> zzz
+     _  -> xxx
+
+comparingも便利。
+
+* IO monad
+IOのgetCharなどはただの命令が書かれているテキスト。
+Runtimeというところに。その命令を送り、Runtimeが実行する。
+副作用のあるものであれば、Runtimeでエラーが起きる。
+
+Maybe, IOはメタな視点で捉えなければならない。
+どちらもObject
+Monadという言葉が諸悪の根源
+
+* lightning
+**

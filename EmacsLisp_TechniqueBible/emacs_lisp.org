@@ -1,0 +1,620 @@
+* 1 準備
+** 1.1 学習の順序、elispの得意なこと
+*** 順序
+- バッファとウィンドウ
+- 関数
+- オンラインヘルプのつかいかた
+- Common Lispマクロ
+- テスト、デバッグ方法
+*** 得意、不得意
+**** 得意
+- テキスト加工(色付けなど)
+- 対話インタフェース作成
+- 他プログラムとの連携
+**** 不得意
+- 数値計算
+elispの挙動が遅いため、あまりつかわない。
+他プログラムと連携することで、解決する。
+
+** 1.2 準備
+- auto-install.el      elispのインストールを手助け
+- open-junk-file.el    てきとうなファイルを作成
+- lispxmp.el           式の評価結果を注釈
+- paredit.el           括弧の対応
+- auto-async-byte-compile.el
+
+** 1.3 構成要素
+- 括弧
+- 空白
+- 数値
+- 文字列
+- シンボル
+構成要素のことをS式(sexp)と呼ぶ。
+構成するものはすべてS式。
+*** elispの予約語 t, nilのみ
+** 1.4 EmacsLispプログラム実行の仕組み
+*** S式の二面性
+- データのかたまり
+- プログラム という意味でのS式を フォームとよぶ
+*** 評価とは
+- 数値、文字列、t、nilを評価すると、そのまま評価結果に
+- クオートされたS式は、クオートがとれてそのまま評価結果に
+- シンボルを評価すると、その変数の値が評価結果に
+- リストを評価すると、関数、スペシャルフォームを呼び出す
+** 1.5 評価の方法
+- コマンド呼出
+- M-:
+- *scratch*バッファでC-j
+- M-x ielm 対話的評価
+- M-x lispxmpで式の値をソースコードに埋め込む
+
+** 1.6 数値
+- +      add
+- -      minus
+- *      by
+- /      商
+- %      余
+- expt   乗算
+- 1+
+- 1-
+
+** 1.7 文字列
+*** バックスラッシュ記法
+\のあとにつづく内容で特定の文字を表す
+(info "(elisp)CharacterType")
+で確認できる。
+
+*** 書式文字列 format関数
+%s,%d,%%
+
+* 2 EmacsLispの基礎
+** 2.1　覚えておきたいコマンド
+| C-M-f     | beginning-of-sexp |
+| C-M-b     | tail-of-sexp      |
+| C-M-SPACE | mark sexp         |
+| C-M-k     | kill sexp         |
+| C-M-t     | switch sexp       |
+| C-M-q     | indent-sexp       |
+
+paredit.el
+| M-( | 括弧でかこむ |
+| M-s | 括弧で外す   |
+
+** 2.2  シンボル、オブジェクト
+代入 setq
+データ型 integerp,floatp,numberp,...
+** 2.3  ローカル変数 let
+let、et*内では、ローカル変数を使える。
+letでは、同時に値をいれるため、一番内側のletで定義されている値だけ有効になる。
+let*内で変数を定義すると、ローカル変数が順に代入される。
+: (setq x 1)
+: (let ((x 3) (y (1+ x)))
+:   (+ x y)                               ; => 5
+:   )
+: (let* ((x 3) (y (1+ x)))
+:   (+ x y)                               ; => 7
+:   )
+** 2.4  データ構造( コンスセル、リスト、ベクタ )
+*** コンスセル、リスト
+コンスとはS式のペアのこと。前の要素がcar、後の要素がcdrでとりだせる。
+: (値1 . 値2)
+: (cons フォーム1 フォーム2)
+
+リストとは、コンスセルのcdrに、コンスセルをつなげたもの。最後のコンスセルのcdrはnil。
+: (値 値 値 ....)
+: (list フォーム フォーム フォーム)
+リストn番目の要素をとりだすときは、
+: (nth n リスト)
+でとりだせる。
+**** コンスのnilについて
+| nil == () | 空のリスト                  |
+| (nil)     | nilという値のはいったリスト |
+: ;;; 同値かどうか
+: (eq nil ())                            ; => t
+: (eq '(nil) nil)                          ; => nil
+: ;;; nilのときt
+: (null nil)                              ; => t
+: (null '(nil))                           ; => nil
+: ;;; consセルのときt
+: (consp nil)                             ; => nil
+: (consp '(nil))                          ; => t
+: ;;; atom(consセル以外)のときt
+: (atom nil)                              ; => t
+: (atom '(nil))                           ; => nil
+*** ベクタ 配列の一種
+横一列にならんだ、配列の状態。文字列もベクタ。
+- 長所 n番目の要素を参照するときに、直接参照できる
+- 短所 固定長のため、要素を追加することができない。
+: [値 値 値 ...]
+: (vector フォーム フォーム フォーム ...)
+ベクタn番目の要素をとりだすには
+: (elt ベクタ n)
+: (aref ベクタ n)
+ベクタn番目の要素を変更するには
+: (aset ベクタ n 値)
+
+** 2.5  同値性、同一性の比較
+*** 同値
+: (equal X Y)
+*** 同一
+オブジェクトが同一であるかどうか。
+: (ex X Y)
+
+** 2.6  条件分岐
+elispでは、偽はnilで表され、それ以外はすべて真となる
+真偽値を反転させるためには、
+: (not X)
+をつかう。
+
+*** 真偽値で動作を制御する場合、以下の関数がある。
+- when   条件が真であれば実行、偽であればnilを返す
+- unless 条件が偽であれば実行、真であればnilを返す
+- if     条件をみたすとき、みたさないときの動作をそれぞれ指定
+*** ifで条件をみたす場合に評価されるフォームを複数にする
+**** progn でフォームをひとまとめにする
+- progn フォームを順に評価し、最後のフォームを返値にする関数
+: ;;;if + progn をつかった式
+: (let (a b)
+:   (if (= 1 2)
+:       (progn
+:         (setq a 2)
+:         (setq b 3)
+:         )
+:     (setq a 10)
+:     (setq b 20))
+:   (list a b)                                ; => (10 20)
+:   )
+**** cond
+switchのような役割。
+: (cond ((zerop (% 10 4)) "10 % 4 === 0")
+:       ((zerop (% 10 2)) "10 % 2 === 0")
+:       (t "not to say")
+:       )                                 ; => "10 % 2 === 0"
+*** 論理式 or / and
+: (or フォーム フォーム)
+: (and フォーム フォーム)
+
+** 2.7  ループ
+- while 条件によるループ
+- dolist リスト各要素のループ
+: (let (result)
+:   (dolist (x '(1 2 3) (cons 'finish result))
+:     (setq result (cons x result))       ; => (1), (2 1), (3 2 1)
+:     )
+:   )                                     ; => (finish 3 2 1)
+** 2.8  正規表現
+対話的に正規表現を組み立てるには
+: M-x re-builder
+をつかう。
+その他の正規表現とは違うところがあるので注意。
+たとえば、すべての文字に対応するためには、
+: \(.\| \n\)
+とする。
+実際に確かめたければ、
+- *scratch*バッファで正規表現インクリメンタルサーチをおこなう。(C-u C-s, C-u C-r)
+- (string-match 正規表現 文字列)
+** 2.9  関数定義 defun
+: ;;;引数のデフォルト値を指定
+: (defun option-arg (a &optional b c)
+:   (setq c (or c 100))
+:   (list a b c))
+: (option-arg 1)                      ; => (1 nil 100)
+: (option-arg 1 2 3)                      ; => (1 2 3)
+** 2.10 コマンド定義 (interactive)
+コマンドとは、定義の最初に、interactiveスペシャルフォームが置かれた関数。
+: ;;; define function
+: (defun hello-world ()
+:   (interactive)
+:   (message "%s" "hello, world!")
+:   )
+*** もっと対話的に
+interactiveに、引数をわたすことで、対話できる。
+: (interactive "コード文字 プロンプト \n コード文字 プロンプト ...")
+実際につかうと、以下。
+: ;;; define interactive function
+: (defun bmi (height weight)
+:   (/ weight height height)
+:   )
+: (bmi 1.75 65)                           ; => 21.22448979591837
+: (defun bmi-show (height weight)
+:   (interactive "nheight(meter) \nnweight(kg) ")
+:   (message "BMI %s" (bmi height weight))
+:   )
+** 2.11 ロード
+*** ロードするまえに、ファイルのあるパスをemacsに設定しておく。
+load-pathという変数に、ファイルパスを指定する。
+指定するときは、
+: (setq load-path (cons .....))
+: (add-to-list 'load-path ....)
+とする。
+*** ロードする準備がととのったら、
+ロードする関数は2つ。requireのほうが評価がはやいので、基本requireをつかう。
+: (require 'シンボル) ;; 一度だけ呼び出す。(シンボルは)
+requireがはやいのは、シンボルを評価するため。シンボルをつかうためには、呼び出されたファイルに、
+: (provide 'シンボル)
+と設定されている必要がある。
+
+: (load ファイル名)    ;; 都度よびだす。
+- provideが書かれていないとき
+- 重複チェックしたくないとき
+につかう。
+
+** 2.12 バイトコンパイル
+lispファイルをemacsで実行しやすい形式に翻訳すること。
+マクロの展開が行われる。
+
+* 3 バッファ、ファイル
+** 3.1 バッファ
+テキストを入れる器のこと。
+ファイル名からつけられることがおおいが、本質的には関係ない。
+ファイル編集のときには以下の手順でおこなわれる。
+- 空バッファ作成
+- バッファにファイルの内容を挿入
+- バッファとファイル名を関連づけ
+- バッファの表示、編集
+- バッファの内容を、ファイルに書き戻す
+バッファを特定する値は、バッファ名とバッファオブジェクトがある。
+*** カレントバッファのバッファオブジェクトは、
+: (current-buffer)
+でとってくる。
+*** あるバッファ名をもつバッファのバッファオブジェクトは、
+: (get-buffer X)
+でとってくる。
+*** バッファ一覧
+: (buffer-list)
+*** カレントバッファを切り替えるには
+: (switch-to-buffer X)
+** 3.2 バッファの作成,削除
+*** バッファ作成
+: (get-buffer-create X) ;Xが存在しないとき作成
+: (generate-new-buffer X) ;バッファを新規作成。おなじ名前があるときは<2>のような数字をつける。
+*** ファイル読込
+: (find-file X)
+: (find-file-noselect X) ;表示はさせず、バッファをつくるだけ
+*** バッファ削除
+: (kill-buffer &optional X)
+** バッファ出力
+: (princ OBJECT)
+文字列にするには、出力内容を文字列に変換できるwith-output-to-string
+: (with-output-to-string
+:     (princ  X))
+バッファにリダイレクトさせるには、with-output-to-temp-bufferをつかう。
+** バッファ情報の取得
+*** バッファ切替
+: (switch-to-buffer X)
+表示させず、評価だけをおこないたい場合は
+: (with-current-buffer X
+:        フォーム)
+とする。
+一時的にバッファをつかうときは、 with-temp-buffer。
+*** バッファローアル変数
+バッファ毎に異なる変数。buffer-file-name, major-modeなどの指定はここできまる。
+: (set (make-variable-buffer-local 'VAR) デフォルト値)
+とすると、変数をバッファローカル変数として定義できる。
+*** ポイント情報
+** バッファ編集
+*** 書き込む
+: (insert STR STR ...)        ;文字列を
+: (insert-buffer-substring X) ;バッファを書き込む
+*** カーソル移動
+goto-(line|char)をつかう。
+現在のカーソル位置を起点にするばあいは
+forward-(char|line)をつかう。
+
+バッファの最初、最後を指定するときには、
+: (goto-char (point-min))
+: (goto-char (point-max))
+をつかう。
+このように指定しておくと、ナローイングしたときに便利だから。
+*** 一時的に状態を変えるときには
+: (save-excursion)
+をつかうと、処理後のカーソル位置を変えずに処理をおこなうことができる。
+
+*** 編集領域の限定 (ナローイング)
+: (narow-to-region 開始 終了)
+C-x n nでも指定できる。
+ナローイング状態で保存し、評価したとに復元するにはsave-restrictionをつかう。
+ナローイング解除後に、バッファ全体を表示するには widen をつかう。
+:   (save-excursion
+:     (widen)
+:     (goto-char (point-min))
+:     (with-output-to-temp-buffer "*petit-grep*"
+:       (while (re-search-forward pattern nil t)
+:         (princ (thing-at-point 'line))
+:         )
+:       )
+:     )
+*** ミニバッファからの入力
+: (interactive "n数字 。。。。")
+これだと、わかりづらいので、read-xxx関数をつかうことで、わかりやすくする。
+: (read-string "入力してね" &optional INIT HISTORY DEFAULT)
+補完機能をつけるには、completing-readをつかう。
+: (completing-read "test:" '("foo" "bar" "baz") &optional nil t)
+| read-file-name |   |
+| read-buffer    |   |
+| read-number    |   |
+| read-passwd    |   |
+| read-command   |   |
+| read-variable  |   |
+これらと、
+: (interactive (list フォーム フォーム ...))
+を組み合わせると、きれいになる。
+:   (interactive
+:    (list (read-buffer "buffer: ")
+:          (read-file-name "file name: ")
+:          (read-number "number: ")
+:          (read-string "string: ")
+:          )
+:    )
+** リージョン、マーカ
+リージョンとは、ポイントとマークの間
+マーカは、pointだけだと編集でずれてしまうので、テキストの変更にあわせて補正してくれる。
+: (set-marker (make-marker) 位置)
+マーカはバッファも記憶している。マーカのあるバッファは
+: (marker-buffer マーカ)
+でえる。
+
+* 4 ウィンドウ
+** 4.1 ウィンドウの分割
+フレームのなかに1つ以上のウィンドウと、エコーエリアが含まれている。
+現在選択されているウィンドウオブジェクトは、
+: (sected-window)
+分割するには、
+: (split-window %optional WINDOW SIZE)
+分割されているかどうかを確かめるには
+: (one-window-p)
+** 4.2 ウィンドウの削除
+現在、または指定したウィンドウを削除
+: (delete-window &optional WINDOW)
+現在、または指定したウィンドウ以外を削除
+: (delete-other-windows &optional WINDOW)
+** 4.3 ウィンドウの選択
+: (select-window ウィンドウオブジェクト)
+一時、別のウィンドウを選択し、元のウィンドウに戻す場合、save-selected-windowをつかう。
+: (save-selected-window
+:   (switch-to-buffer " test1")
+:   (insert "this is test1")
+:   (select-window (split-window-vertically))
+:   (switch-to-buffer " test2")
+:   (insert "this is test2")
+:   )
+** 4.4 ウィンドウとバッファ
+: (window-buffer &optional WINDOW)
+: (buffer-window &optional BUFFER)
+** 4.5 バッファの表示
+バッファの切り替えには
+: (switch-to-buffer BUFFER)
+別ウィンドウを指定する場合には
+: (switch-to-buffer-other-window BUFF)
+: (pop-to-buffer BUFFER)
+ウィンドウを切り替えず、ただ別ウィンドウに表示させたいときは
+: (display-buffer BUFF)
+をつかう。
+** 4.6 ウィンドウ、カーソル
+別ウィンドウで表示中のバッファの表示位置を変更するには
+: (with-selected-window WINDOW
+:         FORM ....)
+とする。
+** 4.7 ウィンドウの大きさ
+: (window-height &optional WIN)   ;たかさ
+: (window-width &optional WIN)    ;はば
+ウィンドウを縮める。
+: (enlarge-window N)              ;n行ひろげる
+: (enlarge-window-horizontally N)
+表示量にあわせてウィンドウサイズを変更。
+: (shrink-window-if-larger-than-buffer)
+** 4.8 ウィンドウ構成
+*** 保存、復元
+保存
+: (setq ウィンドウ構成 (current-window-configuration))
+復元
+: (set-window-configuration ウィンドウ構成)
+
+* 5 様々な関数
+** 数字
+- round       四捨五入
+- truncate    小数点以下切り捨て
+- ceiling     切上げ
+- floor       切下げ
+- randam
+** 文字列
+- substring   一部を切り出す
+- split-string 分割
+- downcase
+- upcase
+- capitalize
+- replace-regexp-in-string
+** シンボル
+- (symbol-name シンボル)  シンボルから文字列へ変換
+- (intern シンボル)       文字列からシンボルへ変換
+シンボルから、その名前の変数の値を参照する
+: (symbol-value SYMBOL)
+シンボルから、その名前の変数の値を変更する
+: (set SYMBOL 値)
+これらをつかうと、こんなことができる。
+: (defun twice (varname)
+:   (set varname (* 2 (symbol-value varname)))
+:   )
+: (setq a 4)
+: (twice 'a)                              ; => 8
+: a                                       ; => 8
+** リスト
+: (make-list LENGTH 値) ;同じ要素でできた長さLENGTHのリストをつくる
+: (append LIST LIST ....) ;リストにリストを追加する
+: (reverse LIST)
+リストをソート
+: (sort LIST 比較関数)
+リストをソートして、破壊的に更新。コンスセルのリストをソートしたいときに便利。
+(require 'cl)が必要。
+: (sort * LIST 比較関数 :key 基準となる関数 )
+
+: (require 'cl)
+: (setq l '( (3 . "three") (2 . "two") (1 . "one")))
+: l                                       ; => ((3 . "three") (2 . "two") (1 . "one"))
+: (setq l (sort* l '< :key 'car))         ; => ((1 . "one") (2 . "two") (3 . "three"))
+: l                                       ; => ((1 . "one") (2 . "two") (3 . "three"))
+: (sort* l 'string< :key 'cdr)            ; => ((1 . "one") (3 . "three") (2 . "two"))
+*** 比較関数について
+| <       | 数値の昇順   |
+| >       | 数値の降順   |
+| string< | 文字列の昇順 |
+** ベクタ
+** シーケンス(リスト、ベクタ、文字列に共通)
+** 型変換
+| string-to-number | String  | Char   |
+| char-to-string   | Char    | String |
+| float            | Integer | Float  |
+| append           | Vector  | List   |
+| buffer-name      | Buffer  | String |
+| get-buffer       | String  | Buffer |
+| symbol-name      | Symbol  | String |
+| intern           | String  | Symbol |
+
+* 6 EmacsLisp応用
+** 6.1 オンラインヘルプ
+*** コマンド検索
+<f1> f コマンド
+で、コマンドの説明をみるおとができる。
+*** シンボル検索
+: M-x apropos シンボルの一部
+でシンボル(関数、変数、フェイス)を列挙する。
+*** 関数、変数、キー割り当ての定義元をしべる。
+: C-x F (find-function)
+: C-x V (find-variable)
+: C-x K (find-function-on-key)
+** 6.2 連想リスト(alist)
+コンスセルを要素とするリスト。
+*** キーからペアをとってくる
+: (assq KEY ALIST)   ; eqで探す
+: (assoc KEY ALIST)  ; equalで探す
+*** 値からペアをとってくる
+: (rassq VALUE ALIST)
+: (rassoc VALUE ALIST)
+*** キーから値
+: (assoc-default KEY ALIST)
+正規表現をつかいたいときは
+: (assoc-default REGEXP ALIST 'string-match)
+** 6.3 ハッシュテーブル
+高速にデータの関連付けをするデータ構造。
+*** ハッシュテーブルを作成
+: (make-hash-table :KEY 'equal)
+あらかじめ値を設定しておく場合
+: #s(hash-table HASHNAME equal data (kEY1 VALUE1 KEY2 VALUE2 ...))
+*** ペアを追加,削除
+: (puthash KEY VALUE HASHNAME)
+: (rembash KEY HASHNAME)
+*** キーから値をとりだす
+: (gethash KEY HASHNAME)
+*** loopマクロをつかって、キー、値、ペアのリストを得る
+require 'clでつかえるようになる。
+: (loop for k being hash-key in HASHNAME collect k)
+: (loop for v being hash-key in HASHNAME collect v)
+: (loop for k being hash-key in HASHNAME using (hash-values v) collect (cons k v))
+** 6.4 属性リスト
+** 6.5 関数プログラミング
+関数をオブジェクトとして扱うプログラミングのこと。
+funcallで関数をオブジェクトとして呼び出すことができる。
+: (setq twice (lambda (x) (* x 2)))
+: (funcall twice 10)                      ; => 20
+*** リストの各要素を関数の引数に
+: (apply FUNC &rest ARGS)
+: (apply '+ '1 '(1 2 3))            ; => 7
+*** リストの各要素を処理
+: (mapcar (lambda (x) (* x 10))
+:         '(1 2 3))                               ; => (10 20 30)
+*** 動的な関数呼び出し
+- intern-softで関数名をシンボルに変換
+- fboundpで、その関数が定義されているか確認
+- 関数が定義されていればfuncall
+: (defun myfunc/twice (x) (* 2 x))
+: (defun myfunc/tenth (x) (* 10 x))
+: (defun call-myfunc (name x)
+:   (let ((funcname (intern-soft (format "myfunc/%s" name))))
+:         (and (fboundp funcname)
+:              (funcall funcname x))
+:         )
+:   )
+: (call-myfunc "twice" 10)                ; => 20
+: (call-myfunc "tenth" 10)                ; => 100
+** 6.6 エラー処理
+Emacsの標準エラー
+| error               |   |   |
+| quit                |   |   |
+| args-out-of-range   |   |   |
+| arith-error         |   |   |
+| beginning-of-buffer |   |   |
+| buffer-read-only    |   |   |
+| coding-system-error |   |   |
+| end-of-file         |   |   |
+| file-already-exists |   |   |
+| file-date-error     |   |   |
+| file-error          |   |   |
+| file-locked         |   |   |
+| file-supersession   |   |   |
+| ftp-error           |   |   |
+| invalid-function    |   |   |
+| invalid-read-syntax |   |   |
+| invalid-regexp      |   |   |
+| mark-inactive       |   |   |
+| nocatch             |   |   |
+
+エラーメッセージを表示させる。
+: (error "%s" "error message")
+エラーを無視するこの場合エラーがおこったら、nilが返るので、条件分岐につかわれる。
+: (ignore-errors フォーム フォーム)
+エラーを捕捉
+: (condition-case エラー変数
+:              保護フォーム
+:       エラーハンドラ...)
+必ず実行される処理を設定する。
+: (unwindprotect
+:      フォーム本体
+:    必ずする処理)** 6.7 正規表現応用
+S式から正規表現を生成させる。
+- regex-opt 指定した文字列リストにマッチする文字列を返す
+フラグがtならば、グルーピング=> \(...\)。
+wordsならば、グルーピングされた単語マッチとなる => \<\(...\)\>。
+: (regex-opt 文字列リスト &optional フラグ)
+- rx S式から正規表現を作成
+
+** 6.8 評価機
+- read
+文字列、バッファから1つだけS式を読み取る。
+: (read ストリーム)
+- eval
+S式を評価する
+: (eval S式)
+** 6.9 マクロ定義
+S式からS式への展開規則。
+フォーム評価時、バイトコンパイル時にまっさきにマクロが展開される。
+すべてのマクロが展開されると、関数とスペシャルフォームだけが残る。
+
+*** マクロのタイプ
+- 変数代入
+(push X L) => (setq L (cons X L))
+- 制御構造
+(when A B1 B2) => (if A (progn B1 B2))
+- 関数定義
+(define-minor-mode X) => (setq minor-mode X)
+- 宣言
+defcustom
+- ミニ言語
+rx, loopなど
+*** バッククォートで、S式にS式の評価値をうめこむ
+バッククォート(`)をクオート(')のかわりに使うことで、式の評価値をうめこむことができる。
+`のついたS式に、以下の記号がある場合、評価値がうめこまれる。
+- ,式の値
+- ,@式の値をリストとみなし、展開したもの
+: `(1 2 3)                                ; => (1 2 3)
+: `(1 ,(+ 1 1) 3)                         ; => (1 2 3)
+: `(foo ,(list 'bar) baz)                 ; => (foo (bar) baz)
+: `(foo ,@(list 'bar) baz)                ; => (foo bar baz)
+*** マクロを定義する
+: (defmacro マクロ名 (引数) 展開式)
+** 6.10互換性確保
+バージョン
+: (emacs-version)
+プラットフォーム
+: (system-type)
+* その他メモ
+- 関数の副作用とは、関数が値以外を返すこと。

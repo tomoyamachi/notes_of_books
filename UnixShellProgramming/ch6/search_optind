@@ -1,0 +1,31 @@
+#!/bin/sh
+AFLAG=FALSE
+BFLAG=FALSE
+CFLAG=FALSE
+VARUE=
+OPT=
+while getopts abc: OPT
+do
+    case $OPT in
+        a) AFLAG=TRUE ;;
+        b) BFLAG=TRUE ;;
+        c) CFLAG=TRUE
+           VALUE=$OPTARG;;
+        \?) echo "Usage: $0 [-ab] [-c value] parameter" 1>&2
+            exit 1 ;;
+    esac
+done
+shift `expr $OPTIND - 1`
+
+if [ "$AFLAG" = "TRUE" ];then
+    echo "a ok"
+fi
+
+if [ "$BFLAG" = "TRUE" ];then
+    echo "b ok"
+fi
+
+if [ "$CFLAG" = "TRUE" ];then
+    echo "c ok, value is $VALUE"
+fi
+echo "parameter is $1"

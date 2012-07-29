@@ -1,0 +1,11 @@
+#!/bin/sh
+STOP=
+trap 'STOP=1; trap 2 3' 2 3
+# 2か3のシグナルがきたら、STOPに1をいれる。そのあとは2と3のシグナルに対して通常どおり処理する。
+while :
+do
+  echo "hello"
+  if [ $STOP ];then
+     break
+  fi
+done
