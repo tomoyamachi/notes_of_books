@@ -1,0 +1,42 @@
+* 便利なシェルスクリプトtips
+: [[ 条件式  ]] による比較
+: [[ ]]で囲むことによって 変数内が空でも文法エラーが表示されないようになる。
+
+: $aが空だと、[]だけだと文法エラーに。
+: $ if [ $a == "hello" ]; then echo "hello"; fi
+:    bash: [: ==: 単項演算子が予期されます
+: $ if [[ $a == "hello" ]]; then echo "hello"; fi
+
+: $ a=hello  # 代入したあとだと、どちらでもうまくいく
+: $ if [ $a == "hello" ]; then echo "hello"; fi
+:   hello
+: $ if [[ $a == "hello" ]]; then echo "hello"; fi
+:   hello
+
+** 文字列比較
+: $a == $b
+: $a != $b
+: -z $a
+: -n $a
+: $a == $pattern
+: $a != $pattern
+** 数値比較
+: $a -eq $b
+: $a -ne $b
+: $a -lt $b
+: $a -le $b
+: $a -gt $b
+: $a -ge $b
+** ファイル検査
+: -e $file     # exist?
+: -d $file     # directory?
+: -h $file     # symbolic link?
+: -f $file     # regular file? (not directory && not device)
+: $file1 -ot $file2 # old than
+: $file1 -nt $file2 # new than
+** 論理演算
+: $a && $b
+: $a || $b
+: ! $a
+: true
+: false
