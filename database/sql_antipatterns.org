@@ -1,0 +1,150 @@
+
+* Introduction
+** Who This Book Is For
+This book can help you by introducing you to the perspective of software developers.
+Use this book to help explain good practices to the software developers you work with and consequences of straying from that path.
+** What's in This Book
+An antipattern is a technique that is intended to solve a problem but that often leads to other problems.
+** Anatomy of an Antipattern
+*** Objective
+This is the task that you may be trying to solve.
+*** The Antipattern
+This section describes the nature of the common solution and illustrates the unforeseen consequences that make it an antipattern.
+*** How to Recognize the Antipattern
+There may be certain clues that help you identify when an antipattern is being used in your project.
+もしこのアンチパターンをつかっていたら、この先どんな事態が起こるかを推測させる手引き。
+*** Legitimate Uses of the Antipattern
+Rules usually have exceptions. There may be sircumstances in which an approach normally considered an antipattern in nevertheless appropriate, or at least the lesser of all evils.
+*** Solution
+This section describes the preferred solutions, which solve the original objective without running into the problems caused by the antipattern.
+
+** What's Not in This Book
+I'm not going to give lessons on SQL syntax or terminology.
+- Recommend : SQL Performance Tuning, High Performance MySQL
+** Conventions
+* Logical Database Design Antipatterns
+Before you start coding , you should decide what information you need to keep in your database and the best way to organize and interconnect your data.
+Includs : planning database tables, columns, and relationships.
+
+** Jaywalking
+*** Objective : Store Multivalue Attributes
+一対多のデータを保存するとき。
+*** Antipattern Format Comma Separated Lists
+テキストで、関連するデータのIDを複数保存する
+[Accounts] 1 -- * [Products]
+**** 問題点
+検索時に正規表現が必要。indexが使えない。
+: SELECT * FROM Products WHERE account_id REGEXP '[[:<:]]12[[:>:]]'
+: SELECT * FROM Products AS p JOIN Accounts As a ON p.acount_id REGEXP '[[:<:]]' || a.account_id || '[[:>:]]' WHERE p.product_id = 123;
+*** How to Recognize the Antipattern
+- 最大何件のリストをサポートすることになるだろうか。
+- SQLで正規表現検索ができるだろうか。
+- どの文字であれば、区切り文字としてつかっても問題がないだろうか
+*** Legitimate Uses of the Antipattern
+
+*** Solution : Create an Ntersection Table
+[Accounts] 1 -- * [Contacts] * -- 1 [Products]
+: CREATE TABLE Contacts (
+:  product_id BIGINT UNSIGNED NOT NULL,
+:  account_id BIGINT UNSIGNED NOT NULL,
+:  PRIMARY KEY (product_id, account_id),
+:  FOREIGN KEY (product_id) REFERENCES Products(product_id),
+:  FOREIGN KEY (account_id) REFERENCES Accounts(account_id)
+:  );
+これでいろいろ簡単になった。
+: SELECT p.* FROM Products AS p JOIN Contacts AS c ON (p.product_id = c.product_id) WHERE c.account_id = 124
+
+** Naive Trees コメント、およびコメントに対するコメント
+*** Objective : Store and Query Hierarchies
+Data may be organized in a treelike or hierarchical way.
+In a tree data structure, each entry is called a node. A node may have a number of children and one parent.
+The top node, which has no parent, is called the root.
+The nodes at the bottom, which have no children are called leaves.
+The nodes in the middle are simply nonleaf nodes.
+*** The Antipattern : Always Depend on One's Parent
+**** Adjacency List
+[Bugs] 1 -- * [Comments] 1-- * [Comments]
+こうしてしまうと、2つ以上 前のnodeを検索するのが大変になる。
+: SELECT c1.*, c2.* FROM Comments c1 LEFT OUTER JOIN Comments c2 On c2.parent_id = c1.comment_id;
+また、親nodeを消した場合、子nodeを削除する処理が面倒になる。
+
+*** How to Recognize the Antipattern
+- How many levels do we need to support in trees?
+何階層まで深くなるのか?
+- I dread having to touch the code that manages the tree data structures.
+木構造をさわるのが嫌だ。
+- I need to run a script periodically to clean up the orphaned rows in the trees.
+木構造を定期的にきれいにするひつようがある。
+*** Legitimate Uses of the Antipattern
+
+*** Solution : Use Alternative Tree Models
+There are several alternatives to the Djacency List model of storing hierarchical data,
+including Path Enumeration, Nested Sets and Closure Table.
+**** Path Enumeration
+You can see a from of Path Enumeration in directory hierarchies. A UNIX path like /usr/local/lib.
+: SELECT * FROM Comments AS c WHERE '1/4/5/7/' LIKE c. path || '%';
+こうすることで、 1/4/6/% , 1/4/%, 1/% にあてはまるデータを取得できる。
+Insert時は
+: INSERT INTO Comments (author, comment) VALUES ('name','hello');
+: UPDATE Comments SET path = (SELECT path FROM Comments WHERE comment_id = 7) || LAST_INSERT_ID() || '/'
+:   WHERE comment_id = LAST_INSERT_ID();
+
+**** Nested Sets
+nsleft, nsrightカラムを作成する。
+自分の子nodeを検索するときに役立つ。ただし直下のnodeや、親nodeを直接検索するのには手間がかかる。
+子node全てを検索するには以下のクエリ。
+: SESECT c2.* FROM Comments AS c1 JOIN Comments AS c2 ON c2.nsleft BETWEEN c1.nsleft AND c1.nsright
+:   WHERE c1.comment_id = 4;
+親nodeを検索するときには、以下のクエリ。
+: SESECT c2.* FROM Comments AS c1 JOIN Comments AS c2 ON c1.nsleft BETWEEN c2.nsleft AND c2.nsright
+:   WHERE c1.comment_id = 4;
+ただし、新しくnodeを追加するとき、そのnodeのnsleft,nsrightよりも大きなnsleft,nsrightの値は全て変更しなければならなくなる。
+
+
+**** Closure Table
+It involves storing all paths through the tree, not just those with a direct parent-child relationship.
+: CREATE TABLE TreePaths (
+:   ancestor BIGINT UNSIGNED NOT NULL,
+:   descendant BIGINT UNSIGNED NOT NULL,
+:   PRIMARY KEY (ancestor, descendant),
+:   FOREIGN KEY (ancestor) REFERENCES Comments(comment_id),
+:   FOREIGN KEY (descendant) REFERENCES Comments(comment_id),
+:  );
+
+: SELECT c.* FROM Comments AS c JOIN TreePaths AS t ON c.comment_id = t.descendant WHERE t.ancestor = 4;
+Closure Table is easier to maintain the hierarchy information. It's more convenient to query immediate child or parent nodes.
+However, you can improve the Closure Table to make queries for immediate parent or child nodes easier. Add a TreePaths.pathlength attributes.
+
+
+**** Which Design Should You Use?
+- Adjacency List is the most conventional design.
+- Recursive Queries using WITH or CONNECT BY PRIOR make it more efficient to use the Adjacency List design.
+ 特定のクエリがつかえるようであれば、いいかも。(MySQLはサポートしていない)
+- Path Enumeration is good for breadcrumbs in user interfaces, but it's fragile because it fails to enforce referential integrity and stores information redundantly.
+ 整合性が心配。
+- Nested Sets is a clever solucion. It also fails to support referential integrit.
+ 木構造を変更することが多いのであれば避けるほうが良い。
+- Closure Table is the most versatile design and the only design in this chapter that could allow anode to belong to multipletrees.
+ただし、たくさんのrowをつくってしまうので、コンピュータ領域を圧迫してしまうかも。
+* Physical Database Design Antipatterns
+You implement the data management as efficiently as you can using the features of your RDBMS technology.
+Includes : defining tables, indexes and choosing data types.
+Use syntaxes : CREATE TABLE
+* Query Antipatterns
+add data to your database and then retrieve data.
+Use syntaxes : DML(Data Manipulation Language) => SELECT, UPDATE, DELETE
+* Application Development Antipatterns
+There are right ways and wrong ways to employ SQL in an application(Ruby ,PHP etc),
+and this part of the book describes some common blunders.
+* Appendixes
+
+* 基本情報
+** || 垂直バー
+文字列の結合
+
+* Templates
+*** Objective
+*** The Antipattern
+*** How to Recognize the Antipattern
+*** Legitimate Uses of the Antipattern
+*** Solution

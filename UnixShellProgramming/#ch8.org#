@@ -1,0 +1,88 @@
+* 第8章数値、文字列操作
+** 数値の計算
+*** 整数の計算 expr
+: expr 3 + 5
+: expr 3 \** 5
+
+*** 数値の比較 test
+equal
+: test int1 -eq int2
+not equal
+: test int1 -ne int2
+less than
+: test int1 -lt int2
+less than or equal
+: test int1 -le int2
+greater than
+: test int1 -gt int2
+greater than or equal
+: test int1 -ge int2
+
+*** 不動小数点を含む計算 bc & scale
+bc     小数点の結果を表示
+scale  小数点以下の桁数を決める
+
+: echo "scale=3; 10 / 3" | bc
+: echo "scale=5; 3.33 ** 3.123" | bc
+
+*** カラムに対する計算
+
+** 文字列の操作
+*** フィルタを使った文字列処理
+[[file:ch7.org][7章]]を参考に。
+: STR="abc def ghi"
+: STR=`echo "$STR" | sed -e "s/def/xyz/g"`
+: echo $STR  #=> abc xyz ghi
+バッククォートをつかうと、その部分に、実行結果が代入される。
+これを利用すると、同じ変数に再代入できる。
+*** 文字列の連結
+: STR1=abc
+: STR2=xyz
+: VAR=$STR1$STR2
+: echo $VAR #=> abcxyz
+: echo ${STR1}xyz #=> abcxyz
+*** 余計なホワイトスペースの削除
+echo $VARとすると、ホワイトスペースを削除できる。
+"$VAR"にすると、処理されないので注意
+: STR="  abc     def xyz "
+: echo "$STR" #=>   abc     def xyz
+: STR=`echo $STR`
+: echo "$STR" #=> abc def xyz
+
+*** 文字列の長さ expr VAR : '.*'
+: expr "string" : '.*'
+exprの引数に:があると、「先頭から何文字までが等しいか」を返す。
+*** 文字列のなかの文字列 grep
+grepコマンドは、「ある文字列がその中に含まれていれば、その行を書き出す」
+: ps ax | grep httpd
+*** 文字列の中の一部を切り出す expr VAR : "regexp\(regexp\)regexp"
+: STR=abcdefghijklmn
+: expr $STR : "a.*\(d.*h\).*" #=> defgh
+正規表現に適用される箇所を抜き出す。
+
+以下の表現は同じ
+: STR=`echo "$STR"|sed -e 's/^..//'`
+: STR=`expr "$STR" : "..\(.*\)"`
+
+*** 文字列の最初の文字だけを大文字にする exprとtrの併用
+2つの処理にわける
+:  STR=abcdefghijklmn
+:  echo "$STR" | tr [a-z] [A-Z] #=> ABCDEFGHIJKLMN
+:  FCHAR=`expr "$STR" : '\(.\).*'`
+:  REMAIN=`expr "$STR" : '.\(.*\)'`
+:  FCHAR=`echo "$FCHAR"|tr [a-z] [A-Z]`
+:  echo $FCHAR$REMAIN  #=> Abcdefghijklmn
+:  STR=$FCHAR$REMAIN
+:  echo $STR  #=> Abcdefghijklmn
+
+** 文字列の取り扱い
+シェルやコマンドがどのように、ある部分が1個の文字列だと判断しているか。
+*** IFS変数
+Internal Field Separatorの略。
+言葉のデリミタ(区切り文字)としてつかわれる。
+デフォルトでは、空白文字とタブ、改行の3つがセットされている。
+
+IFS変数にセットすれば、区切り文字として利用することができる。
+しかし、別の値をセットした場合、目的の処理が終わったら元の値に戻しておくこと。
+*** readコマンド
+
