@@ -1,0 +1,80 @@
+* DESIGN RULES FOR FREE-TO-PLAY GAMES
+Nicholas Lovell
+Rob Fahey
+
+** The Rules
+*** Make it Fun
+いろいろなことに悩む前に、まずは面白いゲームにする。
+
+operant conditioning
+Skinner boxes
+ARM: Acquisition, Retention and Monetisation
+
+*** The Starbucks test
+Can you play your game and have a meaningful experience in the time it takes for a barista to make your macchiato?
+コーヒーを入れる程度の時間で、意味のある体験を提供できるか?
+ゲームのアイコンを見たユーザーに「いまは遊ぶ時間がない」と思わせてはならない。
+*** Come for a minute, stay for an hour
+長くプレイできるゲームにする。
+
+方法としては以下の2つが核となる。
+- 短い時間でのループをつくる。
+- メタゲームとして、30分、3日、3週間、3ヶ月のループをもつ機能を入れる。
+
+*** Complexity in layers
+ライトユーザーが楽しめるだけではなく、熱心なユーザーが挑戦できることを入れる。
+ユーザーが望めば、複雑性をアンロックできるようにする。
+
+成功しているF2Pゲームは、ユーザーを罰することをしない。
+全員に進展があるようにつくられている。
+熱心なユーザーには複雑性が増すことがご褒美になる。
+*** The importance of never ending
+永遠に終わりのないゲームにする。
+そのためにはメタ的なシステムを作るなどの工夫をしてもよい。(強くてニューゲームetc)
+
+*** Be generous
+気前の良いゲームにする。(内容、通貨、アイテムなど)
+課金する人は強制されて課金するのではなく、ゲームが好きだから課金する。
+
+*** Be Free-to-Play forever
+遊ぶだけであれば、最後まで無料でプレイできるようにする。
+潜在的な課金ユーザーを途中で突き放さない。
+
+*** The no-brainer first dollar
+最初の課金は特にやさしく。
+
+- ずっと役に立つアイテム
+- 安めの金額に設定
+- 絶対必要なものにはしない
+- とても価値のあるもの
+
+*** Make it possible to spend $100
+10,000円以上課金できるような設計にする。
+*** Have pizzazz, not polish
+ポリッシュはほどほどにしておき、
+ユーザーのフィードバックに耳を傾ける。
+
+*** Kill the tutorial
+チュートリアルは誰も望んでない。
+誰が好き好んで、ゲームの遊び方を学ぶのか。
+コンシューマゲーム時代の遺産である。
+すくなくとも時間を短くする努力はするべき。
+はじめて30秒以内に面白いことを提供する。
+
+*** I must not fail
+ユーザーに失敗を体験させない。
+常に成長の余地は残しながら、「あなたは腕の悪いプレイヤーです」ということは絶対に伝えない。
+
+*** Sell emotion, not content
+最高のものを提供したのであれば、それ以上コンテンツは売らない。
+感情に訴えるものを売る。
+
+- 自己表現(アバター/アニメーション)
+- 成長(時間/喜び)
+- ステータス (能力)
+- 関係性 (贈り物)
+など
+*** Experiment and learn
+実験を繰り返すことで、学び続ける。
+*** Game development never ends
+リリースしたあとも実験、学習、改良を繰り返す。
