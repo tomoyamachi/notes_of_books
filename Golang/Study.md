@@ -76,12 +76,57 @@ a = s
 
 ある関数がinterface{}を引数にとると、任意の型の値を引数にとることができます。もし関数がinterface{}を返せば、任意の型の値を返すことができるのです。とても便利ですね！
 
-# ... operator
+# ... と [] の違い
 
-The final incoming parameter in a function signature may have a type prefixed with .... A function with such a parameter is called variadic and may be invoked with zero or more arguments for that parameter.
-0以上のパラメタが指定される場合
-`func (e *Echo) Pre(middleware ...MiddlewareFunc) {`
+... は variadic parameter (可変長引数)
+引数をいくつでも渡していいということ。
 
+Link : (Passing arguments to ...parameters)[https://golang.org/ref/spec#Passing_arguments_to_..._parameters]
+Link : (dot dot dot in golang. interface with empty braces)[http://stackoverflow.com/questions/23669720/dot-dot-dot-in-golang-interface-with-empty-braces]
+
+```
+package main
+
+import "fmt"
+const f = "%T(%v)\n"
+
+func main() {
+    // variadic parameterは0個でも動く
+	Greeting("nobody")
+	Greeting("hello:", "Joe", "Anna", "Eileen")
+
+    // mapで同じことをしようとしたらこの通り
+    GreetingMap("hello:", []string{"Joe", "Anna", "Eileen"})
+    // GreetingMap("hello:") // #=> mapの場合、引数不足でエラーになる
+
+    // mapを variadic parameterにするには以下のとおり
+    s := []string{"James", "Jasmine"}
+    Greeting("goodbye:", s...)
+}
+
+
+func Greeting(prefix string, who ...string) {
+	fmt.Printf(f, prefix, prefix)
+	fmt.Printf(f, who, who)
+}
+
+func GreetingMap(prefix string, who []string) {
+	fmt.Printf(f, prefix, prefix)
+	fmt.Printf(f, who, who)
+}
+```
+
+出力結果
+```
+string(nobody)
+[]string([])
+string(hello:)
+[]string([Joe Anna Eileen])
+string(hello:)
+[]string([Joe Anna Eileen])
+string(goodbye:)
+[]string([James Jasmine])
+```
 # メソッドの継承など
 structのpropertyではメソッドのoverrideが行える。
 ```
