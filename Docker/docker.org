@@ -1,0 +1,395 @@
+docker
+
+
+* Recollecting docker Basics
+
+** Docker Internals
+
+*** VMとの違い
+GuestOSを使わずDockerEngine上にBins/Libs/Appを配置
+
+OS containerization
+- Namespaces
+- cgroups
+- capabilities
+- seccomp
+- apparmor and so on
+Virtual (Union) filesystems
+image storage drivers
+in each layer
+memory among container
+new layer created update images file system
+
+
+Data persistence
+- Shaer data between containers
+- Share data between the containers and host
+
+Networking sandbox
+-
+
+** Command line
+
+*** commands to pull images and ru
+
+**** 起動
+docker run -it ubuntu /bin/bash
+
+-i
+-t STDINのterminalの指定
+
+atach command line
+
+**** images 一覧
+docker images
+
+**** 起動中のプロセスを確認
+docker ps
+docker ps -a ⇛ Stopのものも表示
+docker run -it --rm ubuntu /bin/bash
+
+**** 引き渡したい時はqフラグ
+docker images -q
+
+**** こんなかんじでつかう
+docker rmi $(docker images -q)
+
+*** commands modify or inspect runnning
+
+
+*** save container state as images
+
+**** 差分の確認
+docker diff web
+
+**** imagesを保存
+docker commit --change "xxxxxxxx" a b
+xxx : 起動時に実行するコマンド "CMD /bin/bash -l -c ¥"cd /home/amachi¥" && bundle exec unicorn"
+a : 役割
+b : image名
+
+
+docker save repository > hoge.tar
+**** Docker hub
+docker login
+docker push user/repository
+
+docs.socker.com
+
+** Dockerfile
+COPY image内にscriptをコピー
+Run a command in a running container
+docker exec --help
+docker exec -it web /bin/bash
+
+* Composing services
+
+** Orchestration
+build : どこをビルドするか
+command :
+ports :
+environment
+volumes
+links : link other container
+
+
+** Docker compose
+docker-compose up -d
+docker-compose logs web
+
+docker-compose build --no-cache
+
+docker-compose bundle --fetch-digit
+
+docker swarm init
+docker stack
+docker stack tasks
+
+** Compose YAML for Diaspora setup
+
+** Deploying Composed service
+
+*** Docker machine
+docker-machine create --driver virtualbox
+
+
+*** Creating amachine on AWS EC2
+
+Security redentials -> Create IAM
+docker-machine create --driver ec2
+
+** Producetion Requirements
+- Web server
+```
+volumes :
+- '${DIASPORA_DIR}/diaspora.yml:/home/diaspora/diaspora/config/database.yml'
+```
+- Serve assets
+- Absolute volume path
+- pull image instead of building
+
+DIASPORA_DIR=$(docker-machine ssh aws-pg pwd) docker-compose -f doceker-comopose.yml -f docker-compose.production.yml run web /bin/bash
+
+** Single Host Scaling
+DIASPORA_DIR=$(docker-machine ssh aws-pg pwd) docker-compose -f doceker-comopose.yml -f docker-compose.production.yml run web /bin/bash
+ web=2
+
+* Docker network
+
+** Docker entworking model,SDN
+docker run --net=none -it --rm busybox
+ifconfig
+
+
+
+
+** Bridge Networks
+docker network inspect XXXX
+
+ docker run --name bridgenet.1
+ docker run --name bridgenet.2
+docker attach bridgenet.1
+ping bridgenet.2
+
+bad access
+
+docker network connect familiar bridgenet.1
+docker network connect familiar bridgenet.2
+
+docker attach bridgenet.1
+ping bridgenet.2
+
+
+sucess
+
+docker run -dit --name bridgenet.3 diaspora_default busybox
+
+同じnetwork内のものだけ連携できる
+
+
+** Multi-host networking
+Overlay network
+
+
+** Service discovery
+⇛ highly reliability
+
+Distributedd KVS
+- Chubby
+- Apache zookeeper
+- etcd by coreos
+- consul by hashicorp
+
+KVSでなにができるか
+- service registration
+- healthcheck
+- configuration store
+- feature flags
+
+docker run -d --name node1 -h node1 progrium/consul -server -bootstrap-expect 3
+JOIN_IP=$(docker inspect -f '{{.NetworkSeggings.IPAddress}}' node1)
+docker run -d --name node2 -h node2 progrium/consul -server -join $JOIN_IP
+
+CLINENT_IP=$(docker-machine ip dev)
+
+docker logs node1
+
+wagl <- New swarm clustor
+
+
+
+** Infrastructure
+
+*** Issues with current architecture
+- Insuffcient resources to scale
+
+
+***  managed cluster
+⇛ swarm
+- Address pool of resources
+- optimize resource usage
+- autoscale
+- high availability
+- single point of failure
+
+*** Creating Container swarm
+docker native cluster manager
+
+
+**** creating local swarm cluster
+
+docker-machine create -d virtualbox swarm
+
+```
+
+```
+
+**** swarm masterをつくる
+docker-machine create -d virtualbox --swarm --swarm-master
+-swarm-discovery="consul://$(docker-machine ip swarm-kv):8500"
+--engine-opt="cluster-advertise-ech1:2376"
+--virtualbox
+
+```docker-compose.yml
+    restart: 'unless-stopped'
+networks :
+  - backend
+volumes:
+  pgdata:
+    driver: local
+```
+
+
+alias dsp-swrm='DISPRA_DIR=$(pwd) docker compose-f docker-compose.yml'
+eval $(docker-machine)
+
+**** creating swarm on aws
+
+***** security groups
+22 tcp ssh
+80 tcp nginx
+3376 swarm port
+2376 communicate docker engine
+8500 tcp swarm nodes communicate
+4789
+7946 tcp
+7946 udp
+8400 tcp consul
+8600 udp consul
+
+same security groupのみ設定できるように
+***** command line
+VPC_ID=指定
+docker-machine xxxxxx --amazonec2-vpc-id $(VPC_ID)
+
+**** Container Management at Scale
+
+***** introduction to
+kubernetes : Google :
+marathon/mesos : apache : heavily apple invoice
+
+***** same as Swarm
+native user experience
+simplicity
+familiarity to docker
+
+***** vs Swarm : differences
+blue green deployments
+dashboads
+auto scaling
+
+**** Kubernetes
+
+***** architecture
+kubernetes.io
+
+master worker node
+  docker
+    etcd
+    kubernetes master
+      service proxy
+      kubelet
+        userpod1,2,3,4
+
+***** minicube
+minicube start
+kubectl run nginx --image=nginx --port=80
+kubectl get deployments
+
+kubectl get depoyments - nginx 2
+kubectl get pods - nginx-a 1 nginx-b 1
+
+**** Marathon/Mesos
+scheduler
+    |
+mesos master
+    |
+mesos slaves
+
+* Docker security
+
+** attacking vectors
+- docker daemon
+  - socket
+  - namespaces
+  - cgroups
+- root in containers
+- security
+
+- linux kernel capabilities
+  --cap-add
+  --cap-drop
+- user namespace
+  --userns-remap
+
+** docker bench for security
+- audit
+- Content trust
+
+*** notary
+registryを暗号鍵で管理
+notray key generate
+
+
+* Docker Plugins and Drivers
+
+** Logging driver
+logging:
+  driver: syslog # fluentd, aws etc
+  options:
+    syslog-address: "tcp://${SYSLOG}:514"
+    tag: "web"
+
+syslog:
+   image: bobrik/syslog-ng
+
+** Syslog driver
+REXray plugins ローカルでもawsのドライバを利用できる
+rexray/config
+
+volumes:
+  driver: rexray
+
+** Network plugin
+weave net
+secure, simple kvs
+
+
+* Best Tools and Ecosystems tools
+
+** Images
+- minimal size
+- tags :
+- minimul number of layers : alpine / busybox
+- smaller files for aufs :
+- private registries :
+- only one process per container
+
+** Volumes/Storage
+- track disk usage
+- rotate logs
+- independent persistent storage
+- garbage-collect
+
+** Security
+- use https for everything
+- signed or trusted images
+- secret managemnet : kubernetes secret
+- use authorization plugins : built in square
+
+** Maintenance
+- Docker engine upgrade
+- Automated builds
+- Updated software with tags
+
+* Ecosystem tools
+
+- RANCHER : platform : tinyOS
+- Weave works : cluster networking solution
+- cluster hq : data management : FLOCKER : migration data
+- shipyard : GUI docker operation
+- panamax : marketplace :
+- quay : docker image registory :
+- drone.io : CI tools runs on docker
+
+* dockercraft
